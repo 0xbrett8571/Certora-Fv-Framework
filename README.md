@@ -9,7 +9,7 @@
 ```
 **How they connect:**
 
-* **WORKFLOW.md** — Follow this as your checklist
-* **SPEC AUTHORING** — Deep dive when you need more detail on a phase
+* **WORKFLOW.md** — Follow aschecklist
+* **SPEC AUTHORING** — Deep dive when I need more detail on a phase
 * **SPEC FRAMEWORK** — Reference when writing actual CVL in Phase 7
 * **CE DIAGNOSIS** — Reference when prover returns counterexamples
