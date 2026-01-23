@@ -1,0 +1,1352 @@
+# CERTORA VERIFICATION MASTER GUIDE
+
+> **The Complete Framework for Formal Verification of Smart Contracts**  
+> **Version:** 1.0  
+> **Use this guide to verify ANY Solidity contract from scratch**
+
+---
+
+## TABLE OF CONTENTS
+
+1. [Framework Overview](#1-framework-overview)
+2. [Project Setup](#2-project-setup)
+3. [Phase 0: Contract Analysis](#3-phase-0-contract-analysis)
+4. [Phase -1: Execution Closure](#4-phase--1-execution-closure)
+5. [Phase 2: Property Discovery](#5-phase-2-property-discovery)
+6. [Phase 2.5: Classification](#6-phase-25-classification)
+7. [Phase 3.5: Causal Validation](#7-phase-35-causal-validation)
+8. [Phase 4-6: Modeling & Sanity](#8-phase-4-6-modeling--sanity)
+9. [Phase 7: Write CVL](#9-phase-7-write-cvl)
+10. [Running & Debugging](#10-running--debugging)
+11. [Templates](#11-templates)
+12. [Quick Reference](#12-quick-reference)
+
+---
+
+# 1. FRAMEWORK OVERVIEW
+
+## 1.1 Your Framework Documents
+
+| Document | Purpose | When to Use |
+|----------|---------|-------------|
+| **CERTORA_MASTER_GUIDE.md** | Complete step-by-step instructions | Starting any new verification |
+| **SPEC AUTHORING (CERTORA).md** | Deep methodology & theory | Understanding WHY |
+| **Categorizing_Properties.md** | Property discovery guidance | Phase 2 |
+| **CERTORA_SPEC_FRAMEWORK.md** | CVL 2.0 syntax & templates | Writing actual CVL |
+| **CERTORA_CE_DIAGNOSIS_FRAMEWORK.md** | Counterexample debugging | When rules fail |
+| **CERTORA_WORKFLOW.md** | Phase overview | Quick reference |
+
+## 1.2 The Golden Rule
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                                                                  │
+│   UNDERSTAND → ENUMERATE → VALIDATE → WRITE → DEBUG              │
+│                                                                  │
+│   ❌ Never write CVL before completing phases 0 through 3.5     │
+│   ❌ Never skip causal validation                                │
+│   ❌ Never assume external contracts are "standard"              │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+## 1.3 Workflow Diagram
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│                         CERTORA WORKFLOW                              │
+├──────────────────────────────────────────────────────────────────────┤
+│                                                                       │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐               │
+│  │  PHASE 0    │───▶│  PHASE -1   │───▶│  PHASE 2    │               │
+│  │  Contract   │    │  Execution  │    │  Property   │               │
+│  │  Analysis   │    │  Closure    │    │  Discovery  │               │
+│  └─────────────┘    └─────────────┘    └─────────────┘               │
+│         │                  │                  │                       │
+│         ▼                  ▼                  ▼                       │
+│  ┌─────────────────────────────────────────────────┐                 │
+│  │           {contract}_spec_authoring.md          │                 │
+│  └─────────────────────────────────────────────────┘                 │
+│                                                                       │
+│                            │                                          │
+│                            ▼                                          │
+│                   ┌─────────────┐                                     │
+│                   │  PHASE 2.5  │                                     │
+│                   │  INVARIANT  │                                     │
+│                   │  vs RULE    │                                     │
+│                   └─────────────┘                                     │
+│                            │                                          │
+│                            ▼                                          │
+│  ┌─────────────────────────────────────────────────┐                 │
+│  │         {contract}_candidate_properties.md      │                 │
+│  └─────────────────────────────────────────────────┘                 │
+│                                                                       │
+│                            │                                          │
+│                            ▼                                          │
+│                   ┌─────────────┐                                     │
+│                   │  PHASE 3.5  │◀──── RUN VALIDATION                │
+│                   │   Causal    │      certoraRun validation.conf    │
+│                   │  Validation │                                     │
+│                   └─────────────┘                                     │
+│                            │                                          │
+│                    PASS?   │                                          │
+│               ┌────────────┴────────────┐                            │
+│               │ NO                      │ YES                        │
+│               ▼                         ▼                            │
+│        ┌──────────┐            ┌─────────────┐                       │
+│        │  FIX     │            │  PHASE 4-6  │                       │
+│        │  MODELING│            │  Modeling & │                       │
+│        │  GAP     │            │  Sanity     │                       │
+│        └──────────┘            └─────────────┘                       │
+│               │                         │                            │
+│               └─────────────────────────┤                            │
+│                                         ▼                            │
+│                                ┌─────────────┐                       │
+│                                │  PHASE 7    │                       │
+│                                │  Write CVL  │                       │
+│                                └─────────────┘                       │
+│                                         │                            │
+│                                         ▼                            │
+│                                    RUN PROVER                        │
+│                                certoraRun {Contract}.conf            │
+│                                         │                            │
+│                              ┌──────────┴──────────┐                 │
+│                              │                     │                 │
+│                         ❌ FAIL              ✅ PASS                 │
+│                              │                     │                 │
+│                              ▼                     ▼                 │
+│                    ┌──────────────┐         ┌──────────┐            │
+│                    │ CE DIAGNOSIS │         │  DONE!   │            │
+│                    │ FRAMEWORK    │         │          │            │
+│                    └──────────────┘         └──────────┘            │
+│                                                                       │
+└──────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+# 2. PROJECT SETUP
+
+## 2.1 Create Folder Structure
+
+```bash
+# ═══════════════════════════════════════════════════════════════
+# STEP 1: Set your contract name (CHANGE THIS)
+# ═══════════════════════════════════════════════════════════════
+CONTRACT_NAME="YourContract"      # e.g., "Vault", "Staking", "Governor"
+CONTRACT_FILE="YourContract.sol"  # The actual filename
+PROJECT_ROOT="/path/to/your/project"
+
+# ═══════════════════════════════════════════════════════════════
+# STEP 2: Create directory structure
+# ═══════════════════════════════════════════════════════════════
+cd "$PROJECT_ROOT"
+
+# Create spec authoring workspace
+mkdir -p spec_authoring
+
+# Create certora directories
+mkdir -p certora/specs
+mkdir -p certora/confs
+mkdir -p certora/harnesses
+mkdir -p certora/helpers
+
+# ═══════════════════════════════════════════════════════════════
+# STEP 3: Create analysis documents
+# ═══════════════════════════════════════════════════════════════
+# Convert to lowercase for filenames
+CONTRACT_LOWER=$(echo "$CONTRACT_NAME" | tr '[:upper:]' '[:lower:]')
+
+touch "spec_authoring/${CONTRACT_LOWER}_spec_authoring.md"
+touch "spec_authoring/${CONTRACT_LOWER}_candidate_properties.md"
+touch "spec_authoring/${CONTRACT_LOWER}_causal_validation.md"
+
+# ═══════════════════════════════════════════════════════════════
+# STEP 4: Create CVL files
+# ═══════════════════════════════════════════════════════════════
+touch "certora/specs/validation_${CONTRACT_LOWER}.spec"
+touch "certora/specs/${CONTRACT_NAME}.spec"
+touch "certora/confs/validation_${CONTRACT_LOWER}.conf"
+touch "certora/confs/${CONTRACT_NAME}.conf"
+
+echo "✅ Project structure created for ${CONTRACT_NAME}"
+```
+
+## 2.2 Final Structure
+
+```
+your-project/
+├── contracts/
+│   └── YourContract.sol              ← Contract to verify
+│
+├── spec_authoring/                   ← Analysis workspace
+│   ├── yourcontract_spec_authoring.md
+│   ├── yourcontract_candidate_properties.md
+│   └── yourcontract_causal_validation.md
+│
+└── certora/
+    ├── specs/
+    │   ├── validation_yourcontract.spec  ← Run FIRST
+    │   └── YourContract.spec             ← Real verification
+    ├── confs/
+    │   ├── validation_yourcontract.conf
+    │   └── YourContract.conf
+    ├── harnesses/                    ← Simplified implementations
+    │   └── DummyToken.sol
+    └── helpers/                      ← Helper contracts
+        └── DummyOracle.sol
+```
+
+---
+
+# 3. PHASE 0: CONTRACT ANALYSIS
+
+> **Goal:** Extract execution reality from the contract
+
+## 3.1 Commands to Gather Information
+
+```bash
+# ═══════════════════════════════════════════════════════════════
+# Find all external/public functions (entry points)
+# ═══════════════════════════════════════════════════════════════
+grep -n "function.*external\|function.*public" contracts/$CONTRACT_FILE
+
+# ═══════════════════════════════════════════════════════════════
+# Find all storage variables
+# ═══════════════════════════════════════════════════════════════
+grep -n "^\s*mapping\|^\s*uint\|^\s*int\|^\s*address\|^\s*bool\|^\s*bytes\|^\s*string" contracts/$CONTRACT_FILE
+
+# ═══════════════════════════════════════════════════════════════
+# Find all external calls (potential trust boundaries)
+# ═══════════════════════════════════════════════════════════════
+grep -n "\.[a-zA-Z]*(" contracts/$CONTRACT_FILE | grep -v "//" | grep -v "this\."
+
+# ═══════════════════════════════════════════════════════════════
+# Find all imports (execution universe)
+# ═══════════════════════════════════════════════════════════════
+grep -n "^import" contracts/$CONTRACT_FILE
+
+# ═══════════════════════════════════════════════════════════════
+# Find all events (state change indicators)
+# ═══════════════════════════════════════════════════════════════
+grep -n "emit " contracts/$CONTRACT_FILE
+
+# ═══════════════════════════════════════════════════════════════
+# Find all modifiers (access control)
+# ═══════════════════════════════════════════════════════════════
+grep -n "modifier\|onlyOwner\|onlyAdmin\|require.*msg.sender" contracts/$CONTRACT_FILE
+```
+
+## 3.2 Fill in `{contract}_spec_authoring.md`
+
+Copy this template and fill in the blanks:
+
+```markdown
+# [CONTRACT_NAME] Specification Authoring Workspace
+
+> **Contract:** `[ContractName].sol`
+> **Date Started:** [DATE]
+> **Author:** [YOUR NAME]
+
+---
+
+## PHASE 0: VERIFICATION SCOPE
+
+### 0.1 Verification Boundary
+
+**Primary Contract:** `[ContractName].sol`
+
+**In-Scope Contracts:**
+| Contract | Role | Why In-Scope |
+|----------|------|--------------|
+| [ContractName] | Primary | Main verification target |
+| [Contract2] | [Role] | [Reason] |
+
+**Out-of-Scope Contracts:**
+| Contract | Why Out-of-Scope | Modeling Required |
+|----------|------------------|-------------------|
+| [Contract] | [Reason] | [DISPATCHER/NONDET/HAVOC] |
+
+---
+
+### 0.2 Entry Points (State-Changing Functions)
+
+| # | Function | Visibility | Modifiers | State Changes | External Calls |
+|---|----------|------------|-----------|---------------|----------------|
+| 1 | | | | | |
+| 2 | | | | | |
+| 3 | | | | | |
+
+**Total Entry Points:** [N]
+
+---
+
+### 0.3 View Functions
+
+| Function | Returns | Security-Critical? | Used in require()? |
+|----------|---------|-------------------|-------------------|
+| | | Yes/No | Yes/No |
+
+> ⚠️ View functions used in require() are security-critical entry points
+
+---
+
+### 0.4 State Mutation Map
+
+| Storage Variable | Type | Modified By | Read By |
+|------------------|------|-------------|---------|
+| | | | |
+
+---
+
+### 0.5 Asset Flow Trace
+
+For each asset type:
+
+**Asset: [ETH / ERC20 / ERC721 / etc.]**
+| Aspect | Value |
+|--------|-------|
+| Owning Contract | |
+| Inflow Functions | |
+| Outflow Functions | |
+| Balance Check Functions | |
+| Reentrancy Risk? | Yes/No |
+
+---
+
+## PHASE -1: EXECUTION CLOSURE
+
+### -1.1 Execution Universe
+
+**All contracts that participate in execution:**
+
+| Contract | Interaction Type | Called By | Calls To |
+|----------|------------------|-----------|----------|
+| | Direct Call | | |
+| | Callback | | |
+| | Delegate | | |
+
+---
+
+### -1.2 Interaction Ownership Table
+
+| External Contract | Owns What Truth | Our Contract Reads | Our Contract Writes | Callbacks? |
+|-------------------|-----------------|-------------------|--------------------| -----------|
+| | | | | |
+
+> 🚨 Every row must be complete. Blank rows invalidate the spec.
+
+---
+
+### -1.3 Modeling Obligations
+
+| Truth | Owner | Modeling Decision | Justification |
+|-------|-------|-------------------|---------------|
+| balances | ERC20 | DISPATCHER | Need accurate balance tracking |
+| prices | Oracle | NONDET / TRUSTED | [Justify choice] |
+| | | | |
+
+---
+
+## PHASE 3: STATE CLASSIFICATION
+
+### Trusted State (Owned by this contract)
+- [ ] [variable1]
+- [ ] [variable2]
+
+### Untrusted State (External)
+- [ ] [external.variable1] - Owner: [Contract]
+- [ ] [external.variable2] - Owner: [Contract]
+
+---
+
+## PHASE 4: MODELING DECISIONS
+
+### DISPATCHER Summaries
+| Contract.Function | Routes To | Why DISPATCHER |
+|-------------------|-----------|----------------|
+| | | |
+
+### NONDET Summaries
+| Contract.Function | Why NONDET is Safe |
+|-------------------|-------------------|
+| | Does not affect invariant because... |
+
+### Explicit Constraints
+| Constraint | Why Needed |
+|------------|------------|
+| | |
+
+---
+
+## PHASE 5: GHOST REQUIREMENTS
+
+### Ghosts Needed
+| Ghost Name | Type | Purpose | Hooks On |
+|------------|------|---------|----------|
+| | mathint | Sum of... | Sstore X |
+
+### Ghosts NOT Needed (Documented)
+| Considered | Why Not Needed |
+|------------|----------------|
+| | Can read directly from storage |
+
+---
+
+## PHASE 6: SANITY GATE
+
+### Execution Closure ✓
+- [ ] All entry points enumerated
+- [ ] All state mutations mapped
+- [ ] All external reads modeled
+- [ ] All external writes modeled
+- [ ] NONDET usages justified
+
+### Causal Closure ✓
+- [ ] All mutation paths for invariant variables identified
+- [ ] All ghosts have complete hooks
+- [ ] Constructor effects modeled
+- [ ] Validation rules written and PASSED
+
+### Bounded State ✓
+- [ ] Array lengths bounded (< 100 or realistic)
+- [ ] Timestamps bounded (<= max_uint40)
+- [ ] Counters bounded realistically
+
+### Property Quality ✓
+- [ ] No property mixes two truth owners
+- [ ] No ghost mirrors readable storage
+- [ ] No hidden trust assumptions
+- [ ] Every property has real exploit if broken
+
+---
+
+## NOTES & DECISIONS LOG
+
+| Date | Decision | Rationale |
+|------|----------|-----------|
+| | | |
+```
+
+---
+
+# 4. PHASE -1: EXECUTION CLOSURE
+
+> **Goal:** Ensure every external interaction is modeled
+
+## 4.1 Key Questions
+
+For EACH external contract called:
+
+1. **What truth does it own?** (balances, prices, ownership, etc.)
+2. **Do we read from it?** (view calls, storage reads)
+3. **Do we write to it?** (state changes, transfers)
+4. **Can it call us back?** (reentrancy, callbacks)
+5. **How should we model it?** (DISPATCHER, NONDET, HAVOC)
+
+## 4.2 Modeling Decision Matrix
+
+| External Contract Type | Default Modeling | When to Change |
+|------------------------|------------------|----------------|
+| ERC20 Token | DISPATCHER | Never use NONDET for balances |
+| ERC721 NFT | DISPATCHER | Need ownership tracking |
+| Oracle | NONDET or TRUSTED | Document trust assumption |
+| Lending Protocol | DISPATCHER | Never assume solvency |
+| Governance | DISPATCHER | Need state tracking |
+| Unknown Contract | HAVOC_ALL | Maximum adversarial |
+
+## 4.3 Common Mistakes
+
+| Mistake | Consequence | Fix |
+|---------|-------------|-----|
+| Not modeling token | Balance can be anything | Add DISPATCHER for token |
+| NONDET for balances | Spurious counterexamples | Use DISPATCHER |
+| Missing callback | Reentrancy not caught | Model callback pattern |
+| Assuming oracle honest | Miss price manipulation | Document trust or use NONDET |
+
+---
+
+# 5. PHASE 2: PROPERTY DISCOVERY
+
+> **Goal:** List all security properties in plain English
+
+## 5.1 Use Categorizing_Properties.md
+
+Follow the template in `Categorizing_Properties.md` to discover properties.
+
+## 5.2 Fill in `{contract}_candidate_properties.md`
+
+```markdown
+# [CONTRACT_NAME] Candidate Security Properties
+
+> **Contract:** `[ContractName].sol`
+> **Date:** [DATE]
+> **Phase:** 2 (Property Discovery)
+
+---
+
+## Category A: Asset Safety / Solvency
+
+### A1. [Property Name]
+**Plain English:** [One sentence]
+**Impact if Violated:** [Theft / Insolvency / Loss of Funds]
+**Category:** Valid State
+**Variables Involved:**
+  - `[variable]` (owned by [contract])
+**External Truths Needed:** [None / List them]
+**Aggregate/History Required?:** [Yes/No]
+
+### A2. ...
+
+---
+
+## Category B: Functional Correctness
+
+### B1. [Property Name]
+**Plain English:** When [trigger], [expected outcome]
+**Impact if Violated:** [Incorrect behavior / User harm]
+**Category:** State Transition
+**Variables Involved:**
+  - `[variable]` (owned by [contract])
+**External Truths Needed:** [None / List them]
+**Aggregate/History Required?:** [No - function-specific]
+
+---
+
+## Category C: State Consistency
+
+### C1. [Property Name]
+**Plain English:** [Relationship that must always hold]
+**Impact if Violated:** [Accounting corruption / Inconsistency]
+**Category:** System-Level
+**Variables Involved:**
+  - `[variable1]` (owned by [contract])
+  - `[variable2]` (owned by [contract])
+**External Truths Needed:** [None / List them]
+**Aggregate/History Required?:** [Yes - needs ghost for sum]
+
+---
+
+## Category D: Access Control
+
+### D1. [Property Name]
+**Plain English:** Only [role] can [action]
+**Impact if Violated:** [Privilege escalation / Unauthorized access]
+**Category:** State Transition
+**Variables Involved:**
+  - `[protected variable]`
+**External Truths Needed:** [None / List them]
+**Aggregate/History Required?:** [No]
+
+---
+
+## Category E: State Machine
+
+### E1. [Property Name]
+**Plain English:** State can only transition [from] → [to]
+**Impact if Violated:** [Invalid state / Protocol corruption]
+**Category:** State Transition
+**Variables Involved:**
+  - `state` variable
+**External Truths Needed:** [None]
+**Aggregate/History Required?:** [No]
+
+---
+
+## Out of Scope (Trusted Role Assumptions)
+
+### X1. [Property Name]
+**Plain English:** [What would be violated]
+**Why Out of Scope:** Requires [trusted role] to act maliciously
+**Trust Assumption:** [Role] is honest
+
+---
+
+## Summary
+
+| ID | Name | Category | Type (TBD) | Ghost Needed? |
+|----|------|----------|------------|---------------|
+| A1 | | Valid State | ? | No |
+| A2 | | Valid State | ? | No |
+| B1 | | Transition | ? | No |
+| C1 | | System-Level | ? | Yes |
+| D1 | | Transition | ? | No |
+| E1 | | Transition | ? | No |
+```
+
+---
+
+# 6. PHASE 2.5: CLASSIFICATION
+
+> **Goal:** Decide INVARIANT vs RULE for each property
+
+## 6.1 Decision Flowchart
+
+For EACH property, follow this flowchart:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Q0: Is all state in this property owned or modeled?         │
+├─────────────────────────────────────────────────────────────┤
+│ NO  → STOP. Model the external state first.                 │
+│ YES → Continue                                              │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Q1: Is the question "Can X EVER happen?"                    │
+│     vs "WHEN Y happens, does Z happen?"                     │
+├─────────────────────────────────────────────────────────────┤
+│ EVER  → INVARIANT                                           │
+│ WHEN  → Continue                                            │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Q2: Does it depend on a specific function call?             │
+├─────────────────────────────────────────────────────────────┤
+│ YES → RULE                                                  │
+│ NO  → Continue                                              │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Q2.5: Does it depend on external state not fully modeled?   │
+│       (ERC20 balances, oracle prices, etc.)                 │
+├─────────────────────────────────────────────────────────────┤
+│ YES → RULE (invariants over external state are dangerous)   │
+│ NO  → Continue                                              │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Q3: Would a single violation break the protocol forever?    │
+├─────────────────────────────────────────────────────────────┤
+│ YES → INVARIANT                                             │
+│ NO  → RULE                                                  │
+└─────────────────────────────────────────────────────────────┘
+
+📌 When in doubt, default to RULE. It's safer.
+```
+
+## 6.2 Update Your Properties
+
+Add the classification to each property:
+
+```markdown
+### A1. ETH Solvency
+**Plain English:** Contract always has enough ETH to pay users
+...
+**Classification:** INVARIANT ✓
+**Reasoning:** "Can contract EVER owe more than it has?" = EVER question
+```
+
+---
+
+# 7. PHASE 3.5: CAUSAL VALIDATION
+
+> **Goal:** Prove mutation paths are complete BEFORE writing real spec
+
+## 7.1 Fill in `{contract}_causal_validation.md`
+
+```markdown
+# [CONTRACT_NAME] Causal Validation
+
+> **Purpose:** Enumerate ALL mutation paths for INVARIANT variables
+> **Contract:** `[ContractName].sol`
+> **Date:** [DATE]
+
+---
+
+## Property: [PROPERTY_NAME]
+
+**Type:** INVARIANT
+**From:** [candidate_properties.md reference]
+
+### Variables in This Property
+
+| Variable | Type | Location | Purpose |
+|----------|------|----------|---------|
+| `var1` | uint256 | Storage | [Purpose] |
+| `var2` | mathint | Ghost | [Purpose] |
+
+### Mutation Paths for `var1`
+
+| # | Function | Effect | Direction |
+|---|----------|--------|-----------|
+| 1 | `function1()` | [what happens] | increase |
+| 2 | `function2()` | [what happens] | decrease |
+| 3 | `constructor()` | [initial value] | initialize |
+
+### Mutation Paths for `var2` (Ghost)
+
+| # | Storage Write | Hook Location | Effect |
+|---|---------------|---------------|--------|
+| 1 | `_balances[user]` | Sstore hook | sum += new - old |
+| 2 | constructor | init_state axiom | = 0 |
+
+### Validation Rule
+
+```cvl
+rule validation_mutation_paths_var1(method f)
+    filtered { f -> f.contract == currentContract && !f.isView }
+{
+    uint256 before = var1;
+    
+    env e;
+    calldataarg args;
+    f(e, args);
+    
+    uint256 after = var1;
+    
+    assert before != after => (
+        f.selector == sig:function1().selector ||
+        f.selector == sig:function2().selector
+    ), "Unmodeled mutation path for var1";
+}
+```
+
+### Checklist
+
+- [ ] All mutation paths enumerated
+- [ ] All paths have hooks (if ghost)
+- [ ] Constructor modeled
+- [ ] Validation rule written
+- [ ] Validation rule PASSES ✓
+```
+
+## 7.2 Create `validation_{contract}.spec`
+
+```cvl
+/*
+ * ═══════════════════════════════════════════════════════════════
+ * [CONTRACT_NAME] CAUSAL VALIDATION SPEC
+ * ═══════════════════════════════════════════════════════════════
+ * 
+ * Purpose: Validate causal closure BEFORE writing real spec
+ * 
+ * WORKFLOW:
+ * 1. Run: certoraRun certora/confs/validation_[contract].conf
+ * 2. ALL rules must PASS
+ * 3. If any FAIL → Fix modeling gap, re-run
+ * 4. Only after ALL PASS → Proceed to real spec
+ * ═══════════════════════════════════════════════════════════════
+ */
+
+using YourContract as currentContract;
+
+// ═══════════════════════════════════════════════════════════════
+// METHODS BLOCK
+// ═══════════════════════════════════════════════════════════════
+
+methods {
+    // Contract functions (list all state-changing)
+    function function1() external;
+    function function2(uint256) external;
+    function function3(address, uint256) external;
+    
+    // View functions (envfree where possible)
+    function viewFunction() external returns (uint256) envfree;
+    
+    // External contracts - DISPATCHER
+    function _.transfer(address, uint256) external => DISPATCHER(true);
+    function _.balanceOf(address) external => DISPATCHER(true);
+    
+    // Unrelated external calls - NONDET (justified)
+    function _.unrelatedCall() external => NONDET;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// GHOSTS (if needed for validation)
+// ═══════════════════════════════════════════════════════════════
+
+ghost mathint sumVariable {
+    init_state axiom sumVariable == 0;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// HOOKS
+// ═══════════════════════════════════════════════════════════════
+
+hook Sstore currentContract.mapping[KEY address user] uint256 newVal (uint256 oldVal) {
+    sumVariable = sumVariable + newVal - oldVal;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// HELPER FUNCTIONS
+// ═══════════════════════════════════════════════════════════════
+
+function getVariable() returns uint256 {
+    return currentContract.variable;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// VALIDATION RULE 1: Mutation Paths for [Variable]
+// ═══════════════════════════════════════════════════════════════
+
+rule validation_mutation_paths_variable(method f)
+    filtered { f -> f.contract == currentContract && !f.isView }
+{
+    uint256 before = getVariable();
+    
+    env e;
+    calldataarg args;
+    f(e, args);
+    
+    uint256 after = getVariable();
+    
+    assert before != after => (
+        f.selector == sig:function1().selector ||
+        f.selector == sig:function2(uint256).selector
+    ), "CAUSAL VIOLATION: Unmodeled mutation path";
+}
+
+// ═══════════════════════════════════════════════════════════════
+// VALIDATION RULE 2: Ghost Synchronization
+// ═══════════════════════════════════════════════════════════════
+
+rule validation_ghost_sync(method f)
+    filtered { f -> f.contract == currentContract }
+{
+    // Require sync before
+    require to_mathint(getTotalFromStorage()) == sumVariable;
+    
+    env e;
+    calldataarg args;
+    f(e, args);
+    
+    // Must remain synced
+    assert to_mathint(getTotalFromStorage()) == sumVariable,
+        "GHOST DESYNC: Hook missing or incorrect";
+}
+
+// ═══════════════════════════════════════════════════════════════
+// VALIDATION RULE 3: State Bounds
+// ═══════════════════════════════════════════════════════════════
+
+invariant validation_stateBounds()
+    getState() <= MAX_STATE_VALUE
+```
+
+## 7.3 Create `validation_{contract}.conf`
+
+```json
+{
+    "files": [
+        "contracts/YourContract.sol",
+        "contracts/Dependency.sol",
+        "certora/harnesses/DummyToken.sol"
+    ],
+    "link": [
+        "YourContract:TOKEN=DummyToken",
+        "YourContract:DEPENDENCY=Dependency"
+    ],
+    "msg": "[ContractName] Causal Validation",
+    "packages": [
+        "@openzeppelin=lib/openzeppelin-contracts",
+        "@openzeppelin=node_modules/@openzeppelin"
+    ],
+    "solc_evm_version": "cancun",
+    "solc": "solc",
+    "optimistic_loop": true,
+    "optimistic_fallback": true,
+    "loop_iter": "3",
+    "rule_sanity": "basic",
+    "build_cache": true,
+    "server": "production",
+    "verify": "YourContract:certora/specs/validation_yourcontract.spec"
+}
+```
+
+## 7.4 Run Validation
+
+```bash
+# Clear cache and run
+rm -rf .certora_internal
+certoraRun certora/confs/validation_yourcontract.conf
+
+# Check results:
+# ✅ ALL PASS → Proceed to Phase 7
+# ❌ ANY FAIL → Fix the gap and re-run
+```
+
+---
+
+# 8. PHASE 4-6: MODELING & SANITY
+
+## 8.1 Modeling Decisions (Phase 4)
+
+Update your `spec_authoring.md` with final modeling decisions.
+
+## 8.2 Ghost Design (Phase 5)
+
+For each property marked "Aggregate/History Required?: Yes":
+
+| Ghost Pattern | Use When | Template |
+|---------------|----------|----------|
+| Sum tracking | Total = sum of mapping | `ghost mathint sum` + Sstore hook |
+| History | Need previous value | `ghost X prevValue` + hook |
+| Counter | Count occurrences | `ghost mathint count` + hook |
+
+## 8.3 Sanity Gate (Phase 6)
+
+**DO NOT proceed until ALL boxes checked:**
+
+```markdown
+### Pre-CVL Sanity Gate
+
+**Execution Closure**
+- [ ] All entry points enumerated
+- [ ] All external reads have modeling decision  
+- [ ] All external writes have modeling decision
+- [ ] All NONDET justified (doesn't affect invariant)
+
+**Causal Closure**
+- [ ] validation spec written
+- [ ] certoraRun validation PASSED (all rules)
+- [ ] All ghosts have complete hooks
+- [ ] init_state axioms for all ghosts
+
+**Bounded State**
+- [ ] Array params: require arr.length < 100
+- [ ] Timestamps: require e.block.timestamp < 2^40
+- [ ] Balances: realistic bounds if needed
+
+**Property Quality**
+- [ ] Each property has one truth owner (or explicitly modeled)
+- [ ] No property requires honest admin
+- [ ] Every property maps to real exploit
+```
+
+---
+
+# 9. PHASE 7: WRITE CVL
+
+> **You may only enter this phase after Phase 6 sanity gate PASSES**
+
+## 9.1 Spec Structure
+
+```cvl
+/*
+ * ═══════════════════════════════════════════════════════════════
+ * [CONTRACT_NAME] VERIFICATION SPEC
+ * ═══════════════════════════════════════════════════════════════
+ * Contract: [ContractName].sol
+ * Author: [Name]
+ * Date: [Date]
+ * ═══════════════════════════════════════════════════════════════
+ */
+
+// ═══════════════════════════════════════════════════════════════
+// IMPORTS & USING
+// ═══════════════════════════════════════════════════════════════
+
+using DummyToken as token;
+using YourContract as currentContract;
+
+// ═══════════════════════════════════════════════════════════════
+// METHODS BLOCK
+// ═══════════════════════════════════════════════════════════════
+
+methods {
+    // ─────────────────────────────────────────────────────────────
+    // Contract Functions
+    // ─────────────────────────────────────────────────────────────
+    function deposit(uint256 amount) external;
+    function withdraw(uint256 amount) external;
+    
+    // ─────────────────────────────────────────────────────────────
+    // View Functions (envfree)
+    // ─────────────────────────────────────────────────────────────
+    function balanceOf(address user) external returns (uint256) envfree;
+    function totalSupply() external returns (uint256) envfree;
+    
+    // ─────────────────────────────────────────────────────────────
+    // External Contracts - DISPATCHER
+    // ─────────────────────────────────────────────────────────────
+    function _.transfer(address, uint256) external => DISPATCHER(true);
+    function _.transferFrom(address, address, uint256) external => DISPATCHER(true);
+    function _.balanceOf(address) external => DISPATCHER(true);
+    
+    // ─────────────────────────────────────────────────────────────
+    // Unrelated Calls - NONDET (justified)
+    // ─────────────────────────────────────────────────────────────
+    // [Contract].[function] - does not affect [invariant] because [reason]
+    function _.unrelatedFunction() external => NONDET;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// GHOSTS
+// ═══════════════════════════════════════════════════════════════
+
+/// @title Sum of all user balances
+/// @notice Used for totalSupply consistency invariant
+ghost mathint sumBalances {
+    init_state axiom sumBalances == 0;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// HOOKS
+// ═══════════════════════════════════════════════════════════════
+
+/// @notice Update sum when any balance changes
+hook Sstore currentContract._balances[KEY address user] uint256 newBal 
+    (uint256 oldBal) {
+    sumBalances = sumBalances + newBal - oldBal;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// HELPER FUNCTIONS
+// ═══════════════════════════════════════════════════════════════
+
+/// @notice Bundle all invariants for rule preconditions
+function validState() {
+    requireInvariant solvency();
+    requireInvariant totalEqualsSum();
+    requireInvariant stateValid();
+}
+
+/// @notice Standard environment constraints
+function validEnv(env e) {
+    require e.msg.sender != 0;
+    require e.msg.sender != currentContract;
+    require e.block.timestamp > 0;
+    require e.block.timestamp < 2^40;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// INVARIANTS (ordered by dependency - Level 1 first)
+// ═══════════════════════════════════════════════════════════════
+
+/// @title State enum is always valid
+/// @notice Level 1 - no dependencies
+invariant stateValid()
+    getState() <= 2
+
+/// @title Total supply equals sum of balances
+/// @notice Level 2 - depends on ghost
+invariant totalEqualsSum()
+    to_mathint(totalSupply()) == sumBalances
+    {
+        preserved {
+            requireInvariant stateValid();
+        }
+    }
+
+/// @title Contract is always solvent
+/// @notice Level 3 - depends on totalEqualsSum
+invariant solvency()
+    nativeBalances[currentContract] >= totalOwed()
+    {
+        preserved {
+            requireInvariant stateValid();
+            requireInvariant totalEqualsSum();
+        }
+    }
+
+// ═══════════════════════════════════════════════════════════════
+// RULES
+// ═══════════════════════════════════════════════════════════════
+
+/// @title Deposit increases user balance
+/// @notice Verifies correct deposit behavior
+rule deposit_increasesBalance(address user, uint256 amount) {
+    // Preconditions
+    validState();
+    env e;
+    validEnv(e);
+    require e.msg.sender == user;
+    require amount > 0;
+    
+    // Capture before
+    uint256 balBefore = balanceOf(user);
+    
+    // Action
+    deposit(e, amount);
+    
+    // Postcondition
+    uint256 balAfter = balanceOf(user);
+    
+    assert balAfter > balBefore, "Deposit should increase balance";
+}
+
+/// @title Only owner can change settings
+/// @notice Access control verification
+rule onlyOwner_canChangeSettings(method f, address caller)
+    filtered {
+        f -> f.selector == sig:setParameter(uint256).selector
+    }
+{
+    validState();
+    env e;
+    require e.msg.sender == caller;
+    
+    uint256 paramBefore = getParameter();
+    
+    f(e, _);  // Execute the filtered function
+    
+    uint256 paramAfter = getParameter();
+    
+    assert paramBefore != paramAfter => caller == owner(),
+        "Only owner should change settings";
+}
+```
+
+## 9.2 Create `{Contract}.conf`
+
+```json
+{
+    "files": [
+        "contracts/YourContract.sol",
+        "contracts/Dependency.sol",
+        "certora/harnesses/DummyToken.sol"
+    ],
+    "link": [
+        "YourContract:TOKEN=DummyToken"
+    ],
+    "msg": "[ContractName] Verification",
+    "packages": [
+        "@openzeppelin=lib/openzeppelin-contracts"
+    ],
+    "solc_evm_version": "cancun",
+    "solc": "solc",
+    "optimistic_loop": true,
+    "optimistic_fallback": true,
+    "loop_iter": "3",
+    "rule_sanity": "basic",
+    "build_cache": true,
+    "server": "production",
+    "verify": "YourContract:certora/specs/YourContract.spec"
+}
+```
+
+---
+
+# 10. RUNNING & DEBUGGING
+
+## 10.1 Run Commands
+
+```bash
+# ═══════════════════════════════════════════════════════════════
+# Clear cache (do this when changing spec structure)
+# ═══════════════════════════════════════════════════════════════
+rm -rf .certora_internal
+
+# ═══════════════════════════════════════════════════════════════
+# Run validation (ALWAYS FIRST)
+# ═══════════════════════════════════════════════════════════════
+certoraRun certora/confs/validation_yourcontract.conf
+
+# ═══════════════════════════════════════════════════════════════
+# Run real spec
+# ═══════════════════════════════════════════════════════════════
+certoraRun certora/confs/YourContract.conf
+
+# ═══════════════════════════════════════════════════════════════
+# Run specific rule only
+# ═══════════════════════════════════════════════════════════════
+certoraRun certora/confs/YourContract.conf --rule "deposit_increasesBalance"
+
+# ═══════════════════════════════════════════════════════════════
+# Run with output capture
+# ═══════════════════════════════════════════════════════════════
+certoraRun certora/confs/YourContract.conf 2>&1 | tee prover_output.log
+```
+
+## 10.2 Common Compilation Errors
+
+| Error | Cause | Fix |
+|-------|-------|-----|
+| `X is not a valid EVM type` | Enum/custom type in hook | Use `Solidity.Type` or underlying type |
+| `already declared in scope` | Name conflict | Rename your CVL function |
+| `could not find method` | Wrong signature | Check exact signature in contract |
+| `Type mismatch in hook` | Hook type ≠ storage type | Match Solidity types exactly |
+| `NONDET not allowed` | NONDET on state-changing | Use DISPATCHER instead |
+
+## 10.3 Counterexample Debugging
+
+When a rule FAILS, use `CERTORA_CE_DIAGNOSIS_FRAMEWORK.md`:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Step 1: Is the CE showing a REAL bug or SPURIOUS result?    │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│ Check the call trace:                                        │
+│ - Does it use realistic values?                              │
+│ - Does it exploit HAVOC on external calls?                   │
+│ - Does it violate implicit assumptions?                      │
+│                                                              │
+│ REAL BUG:                                                    │
+│ - Values are realistic                                       │
+│ - No HAVOC exploitation                                      │
+│ - Represents actual attack vector                            │
+│ → FIX THE CONTRACT                                           │
+│                                                              │
+│ SPURIOUS:                                                    │
+│ - Unrealistic values (e.g., balance > total supply)          │
+│ - HAVOC changed external state unexpectedly                  │
+│ - Missing modeling constraint                                │
+│ → FIX THE SPEC                                               │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+# 11. TEMPLATES
+
+## 11.1 Harness Template (DummyToken.sol)
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+/**
+ * @title DummyToken
+ * @notice Simplified ERC20 for Certora verification
+ * @dev Removes complex logic that causes timeouts
+ */
+contract DummyToken {
+    mapping(address => uint256) public balanceOf;
+    mapping(address => mapping(address => uint256)) public allowance;
+    uint256 public totalSupply;
+    
+    function transfer(address to, uint256 amount) external returns (bool) {
+        require(balanceOf[msg.sender] >= amount, "Insufficient balance");
+        balanceOf[msg.sender] -= amount;
+        balanceOf[to] += amount;
+        return true;
+    }
+    
+    function transferFrom(address from, address to, uint256 amount) external returns (bool) {
+        require(balanceOf[from] >= amount, "Insufficient balance");
+        require(allowance[from][msg.sender] >= amount, "Insufficient allowance");
+        balanceOf[from] -= amount;
+        balanceOf[to] += amount;
+        allowance[from][msg.sender] -= amount;
+        return true;
+    }
+    
+    function approve(address spender, uint256 amount) external returns (bool) {
+        allowance[msg.sender][spender] = amount;
+        return true;
+    }
+}
+```
+
+## 11.2 Common.spec Template
+
+```cvl
+/*
+ * Common definitions shared across specs
+ */
+
+// Standard address constraints
+function validAddress(address a) returns bool {
+    return a != 0;
+}
+
+// Standard env constraints  
+function validEnv(env e) returns bool {
+    return e.msg.sender != 0 && 
+           e.block.timestamp > 0 && 
+           e.block.timestamp < 2^40;
+}
+
+// Max values
+definition MAX_UINT256() returns uint256 = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
+definition MAX_UINT128() returns uint256 = 0xffffffffffffffffffffffffffffffff;
+```
+
+---
+
+# 12. QUICK REFERENCE
+
+## 12.1 Command Cheat Sheet
+
+```bash
+# Setup
+mkdir -p spec_authoring certora/{specs,confs,harnesses,helpers}
+
+# Analysis
+grep -n "function.*external" contracts/Contract.sol    # Entry points
+grep -n "^\s*mapping\|^\s*uint" contracts/Contract.sol # Storage
+grep -n "\.[a-zA-Z]*(" contracts/Contract.sol          # External calls
+
+# Run
+rm -rf .certora_internal                               # Clear cache
+certoraRun certora/confs/validation.conf               # Validation
+certoraRun certora/confs/Contract.conf                 # Real spec
+certoraRun config.conf --rule "ruleName"               # Single rule
+```
+
+## 12.2 CVL Syntax Quick Reference
+
+```cvl
+// Methods block
+function name(args) external;                          // Declare
+function name(args) external returns (T) envfree;      // Envfree view
+function _.name(args) external => DISPATCHER(true);    // External dispatch
+function _.name(args) external => NONDET;              // Non-deterministic
+
+// Ghost
+ghost mathint myGhost { init_state axiom myGhost == 0; }
+
+// Hook (must match Solidity type)
+hook Sstore contract.var[KEY address k] uint256 new (uint256 old) { ... }
+
+// Invariant
+invariant myInvariant() condition { preserved { requireInvariant other(); } }
+
+// Rule
+rule myRule(args) filtered { f -> condition } { ... assert condition; }
+```
+
+## 12.3 File Checklist
+
+Before running prover, verify:
+
+- [ ] `spec_authoring/{contract}_spec_authoring.md` - Phases 0, -1, 4, 5, 6 complete
+- [ ] `spec_authoring/{contract}_candidate_properties.md` - All properties listed
+- [ ] `spec_authoring/{contract}_causal_validation.md` - Mutation paths documented
+- [ ] `certora/specs/validation_{contract}.spec` - Validation rules
+- [ ] `certora/confs/validation_{contract}.conf` - Validation config
+- [ ] Validation run PASSED ✓
+- [ ] `certora/specs/{Contract}.spec` - Real spec
+- [ ] `certora/confs/{Contract}.conf` - Real config
+- [ ] Required harnesses in `certora/harnesses/`
+
+## 12.4 When Things Go Wrong
+
+| Symptom | Likely Cause | Solution |
+|---------|--------------|----------|
+| Compilation error | Wrong syntax/types | Check CVL 2.0 docs |
+| Timeout | Too complex | Simplify with harnesses |
+| Spurious CE (HAVOC) | Missing modeling | Add DISPATCHER |
+| Spurious CE (values) | Missing constraint | Add realistic bounds |
+| Invariant fails on all | Ghost not synced | Check hooks |
+| Rule fails unexpectedly | Missing validState() | Add requireInvariant |
+
+---
+
+# FINAL CHECKLIST
+
+Before considering verification complete:
+
+```
+□ Phase 0-1: Execution reality fully mapped
+□ Phase 2: All security properties discovered
+□ Phase 2.5: Each property classified (INVARIANT/RULE)
+□ Phase 3.5: Causal validation PASSED
+□ Phase 6: Sanity gate ALL CHECKED
+□ Phase 7: CVL spec written
+□ Prover: All rules PASS
+□ Review: No hidden trust assumptions
+□ Documentation: Decisions logged in spec_authoring.md
+```
+
+---
+
+> **Remember:** A passing spec means nothing if the modeling is wrong.  
+> **Enumerate reality first. Prove safety second.**
