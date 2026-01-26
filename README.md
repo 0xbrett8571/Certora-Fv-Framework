@@ -50,12 +50,12 @@ mkdir -p spec_authoring certora/{specs,confs,harnesses,helpers}
 
 ---
 
-# 13. QUICK START CHAT PROMPT
+## 13. QUICK START CHAT PROMPT
 
 > **Use this section when starting a new verification with an AI assistant.**  
 > **Copy the appropriate prompt below and paste it into your chat.**
 
-## 13.1 For a Brand New Verification Project
+### 13.1 For a Brand New Verification Project
 
 ```markdown
 I am starting a formal verification project using Certora for the following contract:
@@ -80,7 +80,7 @@ Please help me follow the CERTORA_MASTER_GUIDE.md workflow:
 The framework documents are already in my project root.
 ```
 
-## 13.2 For Continuing Phase 0 / Phase -1
+### 13.2 For Continuing Phase 0 / Phase -1
 
 ```markdown
 Continue the Certora verification for [ContractName]:
@@ -95,7 +95,7 @@ Please analyze the contract and help me fill in the spec_authoring document:
 Reference: CERTORA_MASTER_GUIDE.md sections 3 and 4.
 ```
 
-## 13.3 For Phase 2 (Property Discovery)
+### 13.3 For Phase 2 (Property Discovery)
 
 ```markdown
 Continue Certora verification for [ContractName]:
@@ -112,7 +112,7 @@ Based on the Phase 0/-1 analysis, help me discover security properties using Cat
 Output should go into: spec_authoring/{target}_candidate_properties.md
 ```
 
-## 13.4 For Phase 3.5 (Causal Validation)
+### 13.4 For Phase 3.5 (Causal Validation)
 
 ```markdown
 Continue Certora verification for [ContractName]:
@@ -129,7 +129,7 @@ Create the validation spec and conf to verify mutation paths are complete:
 Reference: CERTORA_MASTER_GUIDE.md section 7.
 ```
 
-## 13.5 For Phase 7 (Writing CVL)
+### 13.5 For Phase 7 (Writing CVL)
 
 ```markdown
 Continue Certora verification for [ContractName]:
@@ -149,7 +149,7 @@ Please create:
 Reference: CERTORA_MASTER_GUIDE.md section 9 and CERTORA_SPEC_FRAMEWORK.md.
 ```
 
-## 13.6 For Debugging Counterexamples
+### 13.6 For Debugging Counterexamples
 
 ```markdown
 I have a failing rule in my Certora verification:
@@ -166,7 +166,7 @@ Please help me diagnose using CERTORA_CE_DIAGNOSIS_FRAMEWORK.md:
 
 ---
 
-## 13.7 Essential Information to Provide
+### 13.7 Essential Information to Provide
 
 When starting any verification conversation, always include:
 
