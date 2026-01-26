@@ -1,5 +1,6 @@
-# Certora Specification Workflow
- 
+# Certora Specification Workflow — Complete Guide
+
+> **Version:** 2.0  
 > **Purpose:** Step-by-step workflow for writing correct Certora specifications  
 > **Philosophy:** Understand completely → Model correctly → Write once → Debug systematically
 
@@ -11,12 +12,12 @@ This workflow integrates three documents:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                         CERTORA SPECIFICATION WORKFLOW                      │
+│                         CERTORA SPECIFICATION WORKFLOW                       │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
 │  ┌───────────────────────┐    ┌───────────────────────┐    ┌─────────────┐ │
 │  │  SPEC AUTHORING       │    │  SPEC FRAMEWORK       │    │ CE DIAGNOSIS│ │
-│  │  (CERTORA).md         │───▶│  .md                  │───▶│ FRAMEWORK  │ │
+│  │  (CERTORA).md         │───▶│  .md                  │───▶│ FRAMEWORK   │ │
 │  │                       │    │                       │    │ .md         │ │
 │  │  • Understand         │    │  • Write CVL          │    │  • Debug    │ │
 │  │  • Model              │    │  • Patterns           │    │  • Classify │ │
@@ -274,8 +275,6 @@ Fill in these tables:
 
 ### [PROPERTY_B1]
 ... [same structure]
-
-... and the rest ... [same structure]
 ```
 
 **✅ CHECKPOINT:** Causal validation document created for all properties? Proceed to Step 4.
