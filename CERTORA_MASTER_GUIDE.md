@@ -20,6 +20,7 @@
 10. [Running & Debugging](#10-running--debugging)
 11. [Templates](#11-templates)
 12. [Quick Reference](#12-quick-reference)
+13. [Quick Start Chat Prompt](#13-quick-start-chat-prompt)
 
 ---
 
@@ -127,19 +128,167 @@
 
 # 2. PROJECT SETUP
 
-## 2.1 Create Folder Structure
+## 2.0 Understanding What "New Contract" Means
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        KEY TERMINOLOGY                                   │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  PRIMARY TARGET     = The contract you write invariants/rules FOR        │
+│                       (e.g., Main.sol, Vault.sol, Escrow.sol)           │
+│                                                                          │
+│  COMPILATION DEPS   = ALL files needed to compile the target             │
+│                       (imports, inherited contracts, libraries)          │
+│                                                                          │
+│  IN-SCOPE CONTRACTS = Contracts whose behavior you model accurately      │
+│                       (determined during Phase -1)                       │
+│                                                                          │
+│  EXTERNAL CONTRACTS = Contracts outside your codebase                    │
+│                       (ERC20 tokens, oracles, protocols)                 │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+
+IMPORTANT: You need the ENTIRE contracts folder for compilation,
+           but you VERIFY one primary target at a time.
+```
+
+## 2.1 Generic Folder Structure Template
+
+**Copy this structure for ANY new formal verification project:**
+
+```
+{PROJECT_NAME}/                        ← Your verification project root
+│
+├── ══════════════════════════════════════════════════════════════════════
+│   FRAMEWORK FILES (Copy these to every new project)
+├── ══════════════════════════════════════════════════════════════════════
+│
+├── CERTORA_MASTER_GUIDE.md            ← This file - START HERE
+├── CERTORA_WORKFLOW.md                ← Phase overview
+├── CERTORA_SPEC_FRAMEWORK.md          ← CVL 2.0 syntax & templates
+├── CERTORA_CE_DIAGNOSIS_FRAMEWORK.md  ← Counterexample debugging
+├── SPEC AUTHORING (CERTORA).md        ← Deep methodology
+├── Categorizing_Properties.md         ← Phase 2 property discovery
+│
+├── CVLDocs/                           ← Reference documentation
+│   └── ...
+│
+├── ══════════════════════════════════════════════════════════════════════
+│   ORIGINAL CONTRACTS (The protocol's source code)
+├── ══════════════════════════════════════════════════════════════════════
+│
+├── contracts/                         ← OR whatever the project uses
+│   ├── {path}/{to}/{target}/
+│   │   └── {TargetContract}.sol       ← PRIMARY TARGET
+│   ├── {other}/
+│   │   └── {dependencies}.sol         ← Compilation dependencies
+│   └── {interfaces}/
+│       └── {interfaces}.sol           ← Interface files
+│
+├── ══════════════════════════════════════════════════════════════════════
+│   SPEC AUTHORING WORKSPACE (Your analysis - one per target)
+├── ══════════════════════════════════════════════════════════════════════
+│
+├── spec_authoring/
+│   │
+│   │   # For each PRIMARY TARGET, create these 3 files:
+│   │
+│   ├── {target}_spec_authoring.md      ← Phases 0, -1, 3, 4, 5, 6
+│   ├── {target}_candidate_properties.md ← Phase 2, 2.5
+│   └── {target}_causal_validation.md   ← Phase 3.5
+│
+├── ══════════════════════════════════════════════════════════════════════
+│   CERTORA VERIFICATION (CVL specs and configs)
+├── ══════════════════════════════════════════════════════════════════════
+│
+└── certora/
+    │
+    ├── specs/
+    │   ├── validation_{target}.spec   ← Causal validation (run FIRST)
+    │   └── {TargetContract}.spec      ← Real verification spec
+    │
+    ├── confs/
+    │   ├── validation_{target}.conf   ← Config for validation
+    │   └── {TargetContract}.conf      ← Config for real verification
+    │
+    ├── harnesses/                     ← Simplified external contracts
+    │   └── DummyERC20.sol
+    │
+    └── helpers/                       ← Helper contracts for verification
+        └── ...
+```
+
+## 2.2 Example: Real Project Structure
+
+**Example: Verifying `Main.sol` in a DEX protocol**
+
+```
+dex-verification/
+│
+├── ═══ FRAMEWORK FILES ═══════════════════════════════════════════════════
+├── CERTORA_MASTER_GUIDE.md
+├── CERTORA_WORKFLOW.md
+├── CERTORA_SPEC_FRAMEWORK.md
+├── CERTORA_CE_DIAGNOSIS_FRAMEWORK.md
+├── SPEC AUTHORING (CERTORA).md
+├── Categorizing_Properties.md
+│
+├── ═══ ORIGINAL CONTRACTS ════════════════════════════════════════════════
+├── protocols/
+│   └── dexV2/
+│       ├── base/
+│       │   ├── core/
+│       │   │   ├── adminModule.sol     ← Compilation dependency
+│       │   │   ├── helpers.sol         ← Compilation dependency
+│       │   │   └── main.sol            ← ⭐ PRIMARY TARGET
+│       │   └── other/
+│       │       ├── commonImport.sol    ← Compilation dependency
+│       │       ├── error.sol           ← Compilation dependency
+│       │       ├── errorTypes.sol      ← Compilation dependency
+│       │       ├── events.sol          ← Compilation dependency
+│       │       ├── interfaces.sol      ← Compilation dependency
+│       │       └── variables.sol       ← Compilation dependency
+│       └── proxy.sol                   ← May need modeling
+│
+├── ═══ SPEC AUTHORING (Analysis for main.sol) ════════════════════════════
+├── spec_authoring/
+│   ├── main_spec_authoring.md          ← Analysis document
+│   ├── main_candidate_properties.md    ← Properties list
+│   └── main_causal_validation.md       ← Mutation path analysis
+│
+├── ═══ CERTORA VERIFICATION ══════════════════════════════════════════════
+└── certora/
+    ├── specs/
+    │   ├── validation_main.spec        ← Run FIRST
+    │   └── Main.spec                   ← Real verification
+    ├── confs/
+    │   ├── validation_main.conf
+    │   └── Main.conf
+    └── harnesses/
+        └── DummyERC20.sol              ← If Main interacts with tokens
+```
+
+## 2.3 Setup Commands
 
 ```bash
-# ═══════════════════════════════════════════════════════════════
-# STEP 1: Set your contract name (CHANGE THIS)
-# ═══════════════════════════════════════════════════════════════
-CONTRACT_NAME="YourContract"      # e.g., "Vault", "Staking", "Governor"
-CONTRACT_FILE="YourContract.sol"  # The actual filename
+# ═══════════════════════════════════════════════════════════════════════════
+# STEP 1: Define your variables (CHANGE THESE)
+# ═══════════════════════════════════════════════════════════════════════════
+
+# The contract name (as it appears in Solidity: contract XYZ)
+TARGET_CONTRACT="Main"
+
+# Lowercase version for filenames
+TARGET_LOWER="main"
+
+# Your project root (where contracts already exist)
 PROJECT_ROOT="/path/to/your/project"
 
-# ═══════════════════════════════════════════════════════════════
-# STEP 2: Create directory structure
-# ═══════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════════════════
+# STEP 2: Create verification directories
+# ═══════════════════════════════════════════════════════════════════════════
+
 cd "$PROJECT_ROOT"
 
 # Create spec authoring workspace
@@ -151,51 +300,139 @@ mkdir -p certora/confs
 mkdir -p certora/harnesses
 mkdir -p certora/helpers
 
-# ═══════════════════════════════════════════════════════════════
-# STEP 3: Create analysis documents
-# ═══════════════════════════════════════════════════════════════
-# Convert to lowercase for filenames
-CONTRACT_LOWER=$(echo "$CONTRACT_NAME" | tr '[:upper:]' '[:lower:]')
+# ═══════════════════════════════════════════════════════════════════════════
+# STEP 3: Create analysis documents for your target
+# ═══════════════════════════════════════════════════════════════════════════
 
-touch "spec_authoring/${CONTRACT_LOWER}_spec_authoring.md"
-touch "spec_authoring/${CONTRACT_LOWER}_candidate_properties.md"
-touch "spec_authoring/${CONTRACT_LOWER}_causal_validation.md"
+touch "spec_authoring/${TARGET_LOWER}_spec_authoring.md"
+touch "spec_authoring/${TARGET_LOWER}_candidate_properties.md"
+touch "spec_authoring/${TARGET_LOWER}_causal_validation.md"
 
-# ═══════════════════════════════════════════════════════════════
-# STEP 4: Create CVL files
-# ═══════════════════════════════════════════════════════════════
-touch "certora/specs/validation_${CONTRACT_LOWER}.spec"
-touch "certora/specs/${CONTRACT_NAME}.spec"
-touch "certora/confs/validation_${CONTRACT_LOWER}.conf"
-touch "certora/confs/${CONTRACT_NAME}.conf"
+# ═══════════════════════════════════════════════════════════════════════════
+# STEP 4: Create CVL spec and conf files
+# ═══════════════════════════════════════════════════════════════════════════
 
-echo "✅ Project structure created for ${CONTRACT_NAME}"
+touch "certora/specs/validation_${TARGET_LOWER}.spec"
+touch "certora/specs/${TARGET_CONTRACT}.spec"
+touch "certora/confs/validation_${TARGET_LOWER}.conf"
+touch "certora/confs/${TARGET_CONTRACT}.conf"
+
+# ═══════════════════════════════════════════════════════════════════════════
+# STEP 5: Copy framework files (if not already present)
+# ═══════════════════════════════════════════════════════════════════════════
+
+# Copy from your template location (adjust path as needed)
+# cp /path/to/templates/CERTORA_*.md .
+# cp /path/to/templates/Categorizing_Properties.md .
+# cp /path/to/templates/"SPEC AUTHORING (CERTORA).md" .
+
+echo "✅ Verification structure created for ${TARGET_CONTRACT}"
+echo ""
+echo "Next steps:"
+echo "1. Open spec_authoring/${TARGET_LOWER}_spec_authoring.md"
+echo "2. Follow CERTORA_MASTER_GUIDE.md Phase 0"
 ```
 
-## 2.2 Final Structure
+## 2.4 Configuration File Template
+
+**Template for `certora/confs/{TargetContract}.conf`:**
+
+```json
+{
+    "files": [
+        "path/to/target/TargetContract.sol",
+        "path/to/dependency1.sol",
+        "path/to/dependency2.sol",
+        "path/to/interfaces/IContract.sol",
+        "certora/harnesses/DummyERC20.sol"
+    ],
+    
+    "link": [
+        "TargetContract:TOKEN=DummyERC20"
+    ],
+    
+    "verify": "TargetContract:certora/specs/TargetContract.spec",
+    
+    "msg": "TargetContract Verification",
+    
+    "packages": [
+        "@openzeppelin=lib/openzeppelin-contracts",
+        "@openzeppelin=node_modules/@openzeppelin"
+    ],
+    
+    "solc_evm_version": "cancun",
+    "solc": "solc",
+    "optimistic_loop": true,
+    "optimistic_fallback": true,
+    "loop_iter": "3",
+    "rule_sanity": "basic",
+    "build_cache": true,
+    "server": "production"
+}
+```
+
+**Key points:**
+- `files`: List ALL files needed to compile the target (target + all dependencies)
+- `verify`: Specifies which contract is the PRIMARY TARGET
+- `link`: Connect contract references to harnesses
+
+## 2.5 How Compilation Dependencies Work
 
 ```
-your-project/
-├── contracts/
-│   └── YourContract.sol              ← Contract to verify
-│
-├── spec_authoring/                   ← Analysis workspace
-│   ├── yourcontract_spec_authoring.md
-│   ├── yourcontract_candidate_properties.md
-│   └── yourcontract_causal_validation.md
+┌─────────────────────────────────────────────────────────────────────────┐
+│ Q: How does Certora know which files to include?                        │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│ A: YOU list them in the "files" array. Certora does NOT auto-resolve.   │
+│                                                                          │
+│ ┌─────────────────────────────────────────────────────────────────────┐ │
+│ │ main.sol                                                             │ │
+│ │   import "./helpers.sol";        ← Must be in files[]               │ │
+│ │   import "../other/variables.sol"; ← Must be in files[]             │ │
+│ │   import "../other/interfaces.sol"; ← Must be in files[]            │ │
+│ └─────────────────────────────────────────────────────────────────────┘ │
+│                                                                          │
+│ If you miss a file, you'll get compilation errors.                      │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+## 2.6 Verifying Multiple Contracts
+
+If you need to verify multiple targets in the same project:
+
+```
+project/
+├── spec_authoring/
+│   │
+│   │   # Target 1: Main.sol
+│   ├── main_spec_authoring.md
+│   ├── main_candidate_properties.md
+│   ├── main_causal_validation.md
+│   │
+│   │   # Target 2: AdminModule.sol
+│   ├── adminmodule_spec_authoring.md
+│   ├── adminmodule_candidate_properties.md
+│   └── adminmodule_causal_validation.md
 │
 └── certora/
     ├── specs/
-    │   ├── validation_yourcontract.spec  ← Run FIRST
-    │   └── YourContract.spec             ← Real verification
-    ├── confs/
-    │   ├── validation_yourcontract.conf
-    │   └── YourContract.conf
-    ├── harnesses/                    ← Simplified implementations
-    │   └── DummyToken.sol
-    └── helpers/                      ← Helper contracts
-        └── DummyOracle.sol
+    │   ├── validation_main.spec
+    │   ├── Main.spec
+    │   ├── validation_adminmodule.spec
+    │   └── AdminModule.spec
+    │
+    └── confs/
+        ├── validation_main.conf
+        ├── Main.conf
+        ├── validation_adminmodule.conf
+        └── AdminModule.conf
 ```
+
+**Each target gets its own:**
+- 3 spec_authoring documents
+- 2 spec files (validation + real)
+- 2 conf files (validation + real)
 
 ---
 
@@ -1345,8 +1582,8 @@ Before considering verification complete:
 □ Review: No hidden trust assumptions
 □ Documentation: Decisions logged in spec_authoring.md
 ```
-
 ---
 
 > **Remember:** A passing spec means nothing if the modeling is wrong.  
 > **Enumerate reality first. Prove safety second.**
+
