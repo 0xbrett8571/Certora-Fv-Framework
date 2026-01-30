@@ -57,7 +57,6 @@ mkdir -p spec_authoring certora/{specs,confs,harnesses,helpers}
 
 ### 13.1 For a Brand New Verification Project
 
-```markdown
 I am starting a formal verification project using Certora for the following contract:
 
 **Project Location:** [/path/to/project]
@@ -78,11 +77,9 @@ Please help me follow the CERTORA_MASTER_GUIDE.md workflow:
    - All modifiers/access control
 
 The framework documents are already in my project root.
-```
 
 ### 13.2 For Continuing Phase 0 / Phase -1
 
-```markdown
 Continue the Certora verification for [ContractName]:
 
 **Target:** [path/to/ContractName.sol]
@@ -93,11 +90,9 @@ Please analyze the contract and help me fill in the spec_authoring document:
 - Phase -1: External contracts, interaction ownership table, modeling decisions
 
 Reference: CERTORA_MASTER_GUIDE.md sections 3 and 4.
-```
 
 ### 13.3 For Phase 2 (Property Discovery)
 
-```markdown
 Continue Certora verification for [ContractName]:
 
 **Target:** [path/to/ContractName.sol]
@@ -110,11 +105,9 @@ Based on the Phase 0/-1 analysis, help me discover security properties using Cat
 - Access Control (who can do what)
 
 Output should go into: spec_authoring/{target}_candidate_properties.md
-```
 
 ### 13.4 For Phase 3.5 (Causal Validation)
 
-```markdown
 Continue Certora verification for [ContractName]:
 
 **Target:** [path/to/ContractName.sol]
@@ -127,11 +120,10 @@ Create the validation spec and conf to verify mutation paths are complete:
 4. Include ghost synchronization tests if ghosts are needed
 
 Reference: CERTORA_MASTER_GUIDE.md section 7.
-```
+
 
 ### 13.5 For Phase 7 (Writing CVL)
 
-```markdown
 Continue Certora verification for [ContractName]:
 
 **Target:** [path/to/ContractName.sol]
@@ -147,7 +139,6 @@ Please create:
 2. certora/confs/{ContractName}.conf 
 
 Reference: CERTORA_MASTER_GUIDE.md section 9 and CERTORA_SPEC_FRAMEWORK.md.
-```
 
 ### 13.6 For Debugging Counterexamples
 
