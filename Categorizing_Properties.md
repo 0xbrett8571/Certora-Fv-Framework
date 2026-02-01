@@ -359,3 +359,264 @@ Before leaving this phase:
 - [ ] Trusted role assumptions are marked OUT OF SCOPE
 - [ ] No CVL syntax anywhere
 - [ ] No invariant/rule decision made yet
+
+---
+
+## 5. RIGHT / WRONG BEHAVIOR DUAL CHECKLIST
+
+> **"Formal verification proves execution reality, not intent."**
+> 
+> To capture both correctness and attack surface, enumerate properties using BOTH mindsets:
+
+### The Dual Mindset Approach
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                                                                          │
+│   VALIDATION MINDSET              ATTACKER MINDSET                      │
+│   (What SHOULD happen)            (What MUST NEVER happen)              │
+│                                                                          │
+│   "This should always..."         "This should never..."                │
+│   "When X, then Y"                "Even if X, never Y"                  │
+│   "Only A can do B"               "No one except A can do B"            │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### Right Behavior Checklist (SHOULD ALWAYS)
+
+For each function/state, ask:
+
+| Question | Example Property |
+|----------|------------------|
+| What is the expected postcondition? | "After deposit(), balance increases by amount" |
+| What relationships must hold? | "Total supply == sum of balances" |
+| What conservation laws apply? | "ETH in == ETH out over time" |
+| What ordering must be respected? | "Unlock only after lock period" |
+| What authorizations are required? | "Only owner can pause" |
+
+### Wrong Behavior Checklist (SHOULD NEVER)
+
+For each function/state, ask:
+
+| Question | Example Property |
+|----------|------------------|
+| What would an attacker want? | "Withdraw more than deposited" |
+| What creates value from nothing? | "Mint without backing" |
+| What bypasses time locks? | "Execute before delay expires" |
+| What escalates privileges? | "Non-admin changes config" |
+| What causes permanent lock? | "Funds stuck forever" |
+| What breaks accounting? | "Balance increases without transfer" |
+| What allows reentrancy? | "State inconsistent mid-call" |
+| What front-runs users? | "Sandwich attack on swap" |
+
+### Template: Dual Property Documentation
+
+```markdown
+### [ID]. [Short Name]
+
+**RIGHT (Should Always):**
+> "When [trigger], [expected outcome] should always occur."
+
+**WRONG (Should Never):**
+> "Even if [adversarial condition], [bad outcome] must never occur."
+
+**Variables:** [list]
+**Attack Vector if Wrong:** [describe exploit]
+```
+
+### Example: Dual Property
+
+```markdown
+### A3. Withdrawal Integrity
+
+**RIGHT (Should Always):**
+> "When a user withdraws, their balance decreases by exactly the withdrawn amount."
+
+**WRONG (Should Never):**
+> "Even with multiple rapid withdrawals, a user must never withdraw more than their balance."
+
+**Variables:** userBalance[user], totalSupply
+**Attack Vector if Wrong:** Drain contract via integer underflow or reentrancy
+```
+
+---
+
+## 6. TEST MINING — Extracting Properties from Existing Tests
+
+> **Goal:** Mine existing test suites for implicit invariants, threat assumptions, and developer blind spots.
+
+### Why Mine Tests?
+
+Tests reveal:
+1. **Core Invariants** - What developers thought was important
+2. **Threat Assumptions** - What attacks they considered
+3. **Blind Spots** - What they DIDN'T test
+
+### Test Mining Process
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                                                                          │
+│   STEP 1: Identify Test Files                                           │
+│   ─────────────────────────────                                         │
+│   Look for: test/, tests/, spec/, *.t.sol, *.test.js                   │
+│                                                                          │
+│   STEP 2: Categorize Test Types                                         │
+│   ─────────────────────────────                                         │
+│   • Unit tests → Function-level properties                              │
+│   • Integration tests → Cross-contract properties                       │
+│   • Fuzz tests → Edge cases and bounds                                  │
+│   • Invariant tests → Direct invariant candidates!                      │
+│                                                                          │
+│   STEP 3: Extract Properties                                            │
+│   ─────────────────────────────                                         │
+│   From each test, ask:                                                  │
+│   • What assertion is being made?                                       │
+│   • What's the implicit invariant?                                      │
+│   • What attack is being prevented?                                     │
+│                                                                          │
+│   STEP 4: Note What's MISSING                                           │
+│   ─────────────────────────────                                         │
+│   • What functions have no tests?                                       │
+│   • What state combinations aren't covered?                             │
+│   • What edge cases are untested?                                       │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### Test Mining Extraction Template
+
+```markdown
+### From Test: [test_function_name]
+
+**Test File:** [path/to/test.sol]
+**Test Description:** [what the test does]
+
+**Extracted Property:**
+> "[Plain English property derived from test]"
+
+**Test Assert:** `assert(condition)` or `expect(...).to.equal(...)`
+
+**Property Type:** [Valid State / Transition / System-Level / Threat-Driven]
+
+**Coverage Gap?** [Does this test cover edge cases? What's missing?]
+```
+
+### What to Extract from Each Test Type
+
+| Test Type | Look For | Extract As |
+|-----------|----------|------------|
+| `test_deposit_increases_balance` | Postcondition assert | State Transition property |
+| `test_cannot_withdraw_more_than_balance` | Revert condition | SHOULD NEVER property |
+| `testFuzz_deposit(uint256 amount)` | Bounds, overflows | Valid State + bounds |
+| `invariant_totalSupply` | Direct invariant | System-Level property |
+| `test_onlyOwner_can_pause` | Access control | Access Control property |
+| `test_reentrancy_protection` | Attack prevention | Threat-Driven property |
+
+### Mining Commands
+
+```bash
+# Find all test files
+find . -name "*.t.sol" -o -name "*.test.js" -o -name "*_test.go"
+
+# Find all assertions in Foundry tests
+grep -rn "assert\|assertTrue\|assertEq\|assertGt\|assertLt" test/
+
+# Find all revert expectations
+grep -rn "vm.expectRevert\|revert\|require" test/
+
+# Find invariant tests (Foundry)
+grep -rn "function invariant_" test/
+
+# Find fuzz tests (Foundry)  
+grep -rn "function testFuzz_\|function test.*Fuzz" test/
+```
+
+### Blind Spot Analysis
+
+After mining tests, document what's **NOT** tested:
+
+```markdown
+## Test Coverage Blind Spots
+
+### Functions Without Tests
+- [ ] `emergencyWithdraw()` - no test coverage
+- [ ] `setConfig()` - only happy path tested
+
+### State Combinations Untested
+- [ ] User with zero balance calling withdraw
+- [ ] Multiple users interacting simultaneously
+- [ ] State after failed transaction
+
+### Edge Cases Missing
+- [ ] Max uint256 values
+- [ ] Zero address interactions
+- [ ] Empty arrays
+
+### Attack Vectors Unconsidered
+- [ ] Flash loan attacks
+- [ ] Sandwich attacks
+- [ ] Governance manipulation
+```
+
+---
+
+## Integration: Complete Property Discovery Flow
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                                                                          │
+│   PHASE 2: COMPREHENSIVE PROPERTY DISCOVERY                             │
+│                                                                          │
+│   ┌─────────────────┐                                                   │
+│   │ 1. Mine Tests   │ ← Extract existing developer assumptions          │
+│   └────────┬────────┘                                                   │
+│            ▼                                                             │
+│   ┌─────────────────┐                                                   │
+│   │ 2. RIGHT/WRONG  │ ← Dual mindset enumeration                        │
+│   │    Checklist    │   (Should always / Should never)                  │
+│   └────────┬────────┘                                                   │
+│            ▼                                                             │
+│   ┌─────────────────┐                                                   │
+│   │ 3. Categorize   │ ← Valid State / Transition / System / Threat      │
+│   │    Properties   │                                                   │
+│   └────────┬────────┘                                                   │
+│            ▼                                                             │
+│   ┌─────────────────┐                                                   │
+│   │ 4. Document     │ ← {contract}_candidate_properties.md              │
+│   │    All          │   with IDs, owners, external deps                 │
+│   └─────────────────┘                                                   │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Updated Quick Checklist
+
+Before leaving Phase 2:
+
+**Standard Checklist:**
+- [ ] Every property has a unique ID
+- [ ] Every property has plain English description
+- [ ] Every property has impact assessment
+- [ ] Every property is categorized
+- [ ] Variables and owners documented
+- [ ] External dependencies flagged
+- [ ] Aggregate requirements flagged
+- [ ] Trusted role assumptions marked OUT OF SCOPE
+- [ ] No CVL syntax anywhere
+
+**NEW - Dual Mindset Checklist:**
+- [ ] Each critical function has SHOULD ALWAYS property
+- [ ] Each critical function has SHOULD NEVER property
+- [ ] Attack vectors explicitly enumerated
+- [ ] Attacker goals documented
+
+**NEW - Test Mining Checklist:**
+- [ ] Existing tests reviewed
+- [ ] Implicit invariants extracted
+- [ ] Threat assumptions documented
+- [ ] Blind spots identified
+- [ ] Coverage gaps noted

@@ -56,12 +56,34 @@ touch "certora/confs/${TARGET_CONTRACT}.conf"
 ```
 Phase 0   → Contract Analysis (entry points, storage, external calls)
 Phase -1  → Execution Closure (external contracts, modeling decisions)
-Phase 2   → Property Discovery (security properties in plain English)
+Phase 2   → Property Discovery (DUAL MINDSET: should always + should never)
+            └── NEW: Mine tests for invariants, threats, blind spots
 Phase 2.5 → Classification (INVARIANT vs RULE)
 Phase 3.5 → Causal Validation ← RUN VALIDATION SPEC FIRST
 Phase 4-6 → Modeling & Sanity Gate
 Phase 7   → Write Real CVL Spec
 ```
+
+---
+
+## Dual Mindset Property Discovery (NEW in v1.2)
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                                                                          │
+│   VALIDATION MINDSET              ATTACKER MINDSET                      │
+│   (What SHOULD happen)            (What MUST NEVER happen)              │
+│                                                                          │
+│   "This should always..."         "This should never..."                │
+│   "When X, then Y"                "Even if X, never Y"                  │
+│                                                                          │
+│   + TEST MINING: Extract invariants, threats, and blind spots           │
+│     from existing test suites                                           │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+See `Categorizing_Properties.md` sections 5 and 6 for details.
 
 ---
 
@@ -157,9 +179,10 @@ When working with an AI assistant, use these prompts:
 
 ## Version
 
-**Version:** 1.1  
-**Last Updated:** January 2026
+**Version:** 1.2  
+**Last Updated:** February 2026
 
 ### Changelog
+- v1.2: Added Dual Mindset approach (should always/never), Test Mining for property discovery
 - v1.1: Added Section 9.0 (Validation to Real Spec transition), Section 13 (Chat Prompts)
 - v1.0: Initial framework

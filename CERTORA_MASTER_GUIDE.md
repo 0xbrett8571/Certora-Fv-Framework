@@ -1720,6 +1720,33 @@ Based on the Phase 0/-1 analysis, help me discover security properties using Cat
 Output should go into: spec_authoring/{target}_candidate_properties.md
 ```
 
+## 13.3.1 For Phase 2 with Dual Mindset + Test Mining
+
+```markdown
+Continue Certora verification for [ContractName]:
+
+**Target:** [path/to/ContractName.sol]
+**Test Files:** [path/to/tests/]
+**Current Phase:** 2 (Property Discovery - Comprehensive)
+
+Please help me discover properties using the DUAL MINDSET approach:
+
+**1. Mine existing tests:**
+   - Extract implicit invariants from test assertions
+   - Identify threat assumptions
+   - Note blind spots (what's NOT tested)
+
+**2. RIGHT/WRONG behavior enumeration:**
+   - For each critical function, document:
+     - SHOULD ALWAYS: "When X, Y should always happen"
+     - SHOULD NEVER: "Even if X, Y must never happen"
+
+**3. Categorize all properties:**
+   - Valid States / State Transitions / System-Level / Threat-Driven
+
+Reference: Categorizing_Properties.md sections 5 and 6 (Dual Checklist & Test Mining)
+```
+
 ## 13.4 For Phase 3.5 (Causal Validation)
 
 ```markdown
