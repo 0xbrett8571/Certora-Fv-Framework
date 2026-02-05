@@ -4,6 +4,11 @@
 > **CVL Syntax Reference:** CVL 2.0 (Certora Prover)  
 > **Philosophy:** You are not verifying a contract. You are verifying a *closed EVM universe* with that contract inside it.
 
+**v1.3 Companion Documents:**
+- **BEST_PRACTICES_FROM_CERTORA.md** - Official tutorial techniques for invariants, CE investigation, loop handling
+- **QUICK_REFERENCE_v1.3.md** - Printable cheat sheet with CVL syntax and phase checklists
+- **Categorizing_Properties.md Section 7** - Property prioritization (HIGH/MEDIUM/LOW)
+
 ---
 
 ## Table of Contents
@@ -705,6 +710,10 @@ invariant complexInvariant(uint256 id, address user)
 
 > **Before ANY property implementation, classify it.**
 
+📄 **See also:**
+- **BEST_PRACTICES_FROM_CERTORA.md Section 3** - Invariant design patterns (monotonicity, conservation laws)
+- **Categorizing_Properties.md Section 7** - Property prioritization framework
+
 ### Classification Decision Tree
 
 ```
@@ -1235,6 +1244,10 @@ rule parametricRule(method f)
 ```
 
 ### If You Get Counterexamples:
+
+📄 **For comprehensive CE debugging, see:**
+- **CERTORA_CE_DIAGNOSIS_FRAMEWORK.md** - Systematic 5-phase diagnosis
+- **BEST_PRACTICES_FROM_CERTORA.md Section 2** - Tutorial-based investigation workflow
 
 | Counterexample Type | Root Cause | Fix |
 |---------------------|------------|-----|

@@ -1727,7 +1727,9 @@ Please analyze the contract and help me fill in the spec_authoring document:
 - Phase 0: Entry points, storage variables, asset flows
 - Phase -1: External contracts, interaction ownership table, modeling decisions
 
-Reference: CERTORA_MASTER_GUIDE.md sections 3 and 4.
+Reference: 
+- CERTORA_MASTER_GUIDE.md sections 3 and 4
+- BEST_PRACTICES_FROM_CERTORA.md Section 4 (harness patterns if needed)
 ```
 
 ## 13.3 For Phase 2 (Property Discovery)
@@ -1813,7 +1815,11 @@ Please help me create the real spec:
 4. Create certora/specs/{Contract}.spec
 5. Create certora/confs/{Contract}.conf
 
-Reference: CERTORA_MASTER_GUIDE.md section 9.0 (Transition from Validation to Real Spec)
+Reference:
+- CERTORA_MASTER_GUIDE.md section 9.0 (Transition from Validation to Real Spec)
+- CERTORA_SPEC_FRAMEWORK.md (CVL syntax patterns)
+- BEST_PRACTICES_FROM_CERTORA.md Section 3 (invariant design patterns)
+- QUICK_REFERENCE_v1.3.md (keep open for syntax lookup)
 ```
 
 ## 13.6 For Debugging Counterexamples
@@ -1825,10 +1831,33 @@ I have a failing rule in my Certora verification:
 **Failing Rule:** [rule name]
 **Error/CE Summary:** [paste the counterexample or error]
 
-Please help me diagnose using CERTORA_CE_DIAGNOSIS_FRAMEWORK.md:
+Please help me diagnose using the systematic approach:
 1. Is this a REAL bug or SPURIOUS result?
 2. If spurious, what modeling is missing?
 3. If real, what's the attack vector?
+
+Reference:
+- CERTORA_CE_DIAGNOSIS_FRAMEWORK.md (comprehensive 5-phase diagnosis)
+- BEST_PRACTICES_FROM_CERTORA.md Section 2 (5-step investigation workflow from Tutorial Lesson 02)
+- Focus on call trace analysis: storage changes, arguments, return values
+```
+
+## 13.6.1 For Loop Timeouts or Inductive Invariant Failures
+
+```markdown
+I'm experiencing [timeout / invariant doesn't hold in preserved block] related to loops:
+
+**Target:** [ContractName]
+**Problematic Function:** [function with loop]
+**Issue:** [timeout / invariant fails / optimistic_loop insufficient]
+
+Please help me resolve using loop handling strategies:
+1. Should I use --loop_iter with specific bound?
+2. Should I use --optimistic_loop?
+3. Do I need loop invariants in preserved block?
+4. Should I simplify the loop in a harness?
+
+Reference: BEST_PRACTICES_FROM_CERTORA.md Section 5 (Loop Handling from Tutorial Lesson 11)
 ```
 
 ## 13.7 Essential Information to Provide
