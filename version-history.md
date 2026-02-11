@@ -1,7 +1,97 @@
 # Framework Version History
 
-> **Current Version:** 1.5 (RareSkills Integration)  
+> **Current Version:** 1.7 (Prover v8.8.0 Built-in Rules)  
 > **Last Updated:** February 2026
+
+---
+
+## Version 1.7 (Prover v8.8.0 Built-in Rules) - February 2026
+
+### Rationale
+Certora Prover v8.8.0 introduced powerful built-in rules (`uncheckedOverflow`, `safeCasting`) that automate detection of two critical vulnerability classes — unsafe unchecked arithmetic and silent casting truncation — without writing any custom rules. The framework needed to integrate these as first-class verification steps.
+
+### New Prover Features Covered
+
+| Feature | Type | What It Does |
+|---------|------|-------------|
+| `use builtin rule uncheckedOverflow` | Builtin rule | Auto-checks all `+`, `-`, `*` in `unchecked` blocks for overflow/underflow |
+| `use builtin rule safeCasting` | Builtin rule | Auto-checks all explicit casts for out-of-bounds truncation |
+| `--assume_no_casting_overflow` | CLI flag | Assumes all casts are in bounds (underapproximation — use after `safeCasting` verification) |
+| `--method` / `--exclude_method` name-only | CLI change | Name without parameter types now matches all overloads |
+
+### Changes by Document
+
+#### cvl-language-deep-dive.md
+- Added **Section 19.1: Built-in Rules — Automated Safety Checks** with:
+  - Complete 7-rule reference table (sanity, deepSanity, msgValueInLoopRule, hasDelegateCalls, viewReentrancy, safeCasting, uncheckedOverflow)
+  - Detailed `uncheckedOverflow` documentation with example and .conf requirements
+  - Detailed `safeCasting` documentation with cast categories (unsigned, signed/unsigned, signed)
+  - `--assume_no_casting_overflow` documentation with safety warnings
+  - Recommended builtin rule strategy (Phase 0 vs Phase 1)
+
+#### advanced-cli-reference.md
+- Updated `--method` examples with name-only filtering syntax (v8.8.0+)
+- Updated `--exclude_method` with name-only support
+- Updated CLI decision tree with name-only hint
+
+#### certora-spec-framework.md
+- **Revert/Failure-Path Checklist**: Added 2 items for `uncheckedOverflow` and `safeCasting` builtin rules
+
+#### verification-playbooks.md
+- **Four-Phase System**: Added "Phase 0: BUILTIN SAFETY SCAN" with all 6 builtin rules
+- **Common Pitfalls**: Added unchecked overflow and silent cast truncation entries
+
+#### best-practices-from-certora.md
+- **Pre-Run Prover Checklist**: Added 2 items for `uncheckedOverflow` and `safeCasting`
+
+---
+
+## Version 1.6 (Revert/Failure-Path Coverage) - June 2025
+
+### Rationale
+The framework had strong revert/failure-path coverage in reference documents (cvl-language-deep-dive.md §5, verification-playbooks.md §4.3) but weak coverage in process/workflow documents. A specification engineer following the phases sequentially would not be guided to verify revert behavior until discovering it in reference material. This release promotes revert verification from "technique you might find" to "mandatory process step."
+
+### Principle
+> **Proving why something reverts is just as important as proving success.**  
+> By default, the Certora Prover ignores all execution paths that revert. If you don't use `@withrevert`, revert paths are silently pruned — a passing rule only proves the happy path.
+
+### Changes by Document
+
+#### certora-spec-framework.md
+- **Phase 3 Rule Implementation Pattern**: Expanded from 1 generic pattern to 3 explicit patterns:
+  - Pattern A: Success-Path-Only (with mandatory companion note)
+  - Pattern B: Complete with `@withrevert` + Liveness/Effect/No-Side-Effect (marked PREFERRED)
+  - Pattern C: Dedicated Revert Rule
+- Added critical warning block about default revert pruning behavior
+- **Phase 4**: Added "Revert/Failure-Path Checklist" (7 items) before Quality Checklist
+
+#### spec-authoring-certora.md
+- **Phase 3 Property Specification Block**: Added "Revert/Failure Behavior" field requiring documentation of success/revert conditions for each function
+- **Phase 6 Final Sanity Gate**: Added "Revert/Failure Coverage Checks" section (7 checklist items)
+
+#### certora-master-guide.md
+- **Final Checklist**: Added 3 new items: Revert Coverage, Liveness Assertions, No Silent Revert Pruning
+- **Quick Reference §12.2**: Added revert verification syntax examples (`@withrevert`, `bool success`, biconditional patterns)
+
+#### best-practices-from-certora.md
+- **Pre-Run Prover Checklist**: Added 4 new items for revert coverage (`@withrevert` usage, `<=>` assertions, `lastReverted` capture timing, failure condition documentation)
+
+#### categorizing-properties.md
+- Added "Revert Behavior Checklist (MUST REVERT WHEN)" section with 6 diagnostic questions
+- Enhanced property documentation template with `REVERT (Must Revert When)` field
+- Enhanced example property (A3. Withdrawal Integrity) with concrete revert conditions
+- Added 2 new entries to Common Mistakes table (revert conditions, SHOULD ALWAYS-only properties)
+
+#### certora-ce-diagnosis-framework.md
+- Added **SILENT PASS** classification to the CE classification table
+- Added "Silent Pass" warning block explaining how pruned revert paths cause false confidence
+- Added concrete before/after code example demonstrating the problem
+
+### Documents Unchanged (Already Adequate)
+- **cvl-language-deep-dive.md**: Section 5 already provides comprehensive `@withrevert`/`lastReverted` reference with biconditional patterns, overwriting warnings, and non-payable/overflow traps
+  - *v1.6 addition:* Built-in max constants table (`max_uint8` through `max_uint256`) added to Section 1
+- **verification-playbooks.md**: Already uses `@withrevert` in every function rule, uses Liveness/Effect/No-Side-Effect pattern consistently, has Revert Condition Enumeration Checklist in §4.3
+  - *v1.6 additions:* SafeMint (§3.11) and SafeTransferFrom (§3.12) callback-aware rules, Initializable Playbook (§5), Nonces Playbook (§6)
 
 ---
 
@@ -546,7 +636,7 @@ This version is designed for:
 - **v1.4** — Advanced CLI Reference, PoC templates, Vulnerability Report template
 - **v1.5** — RareSkills Certora Book integration, CVL Language Deep Dive, Verification Playbooks (ERC-20/WETH/ERC-721), vacuous truth defense, requireInvariant lifecycle, ghost havocing diagnosis, Liveness/Effect/No-Side-Effect pattern
 
-### Planned for v1.6
+### Planned for v1.8
 - Integration examples from real audit engagements
 - Property library expansion (governance, vaults, staking)
 - Automated property extraction tooling
@@ -583,6 +673,6 @@ For questions or issues:
 
 ---
 
-**Current Stable Version:** 1.5  
+**Current Stable Version:** 1.7  
 **Status:** Production-Ready  
-**Last Updated:** February 8, 2026
+**Last Updated:** February 2026

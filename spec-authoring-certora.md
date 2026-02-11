@@ -324,8 +324,23 @@ For each surviving property, output the following block:
 **Impact Category:** Theft / Insolvency / Privilege Escalation / Griefing
 **Plain English Description:** The law being enforced
 **External Truths Used:** (list contracts + fields)
+**Revert/Failure Behavior:** (describe expected revert conditions, if any)
 
 If non-empty → reviewer must check modeling.
+
+> **NEW v1.6 — Revert Specification Requirement:**
+> For each state-changing function referenced in a rule, document:
+> 1. Under what conditions should it **succeed**?
+> 2. Under what conditions should it **revert**?
+> 3. Is the revert behavior verified via `@withrevert` + `lastReverted`?
+>
+> A property that only verifies the success path leaves the failure behavior undefined.
+> If an attacker can manipulate *whether* a function reverts, that’s a security-critical
+> behavior that MUST be specified.
+>
+> **Minimum standard:** Every rule for a state-changing function should either:
+> - Use the complete Liveness/Effect/No-Side-Effect pattern (`@withrevert` + `<=>`), OR
+> - Have a companion `_revert` rule that exhaustively enumerates revert conditions
 
 ---
 ## PHASE 3.5 — CAUSAL CLOSURE VALIDATION (MANDATORY)
@@ -633,6 +648,15 @@ Before CVL is written:
 ☐ `msg.value` influence on logic analyzed
 ☐ Silent rounding / truncation analyzed
 ☐ Zero-value edge cases analyzed
+
+### Revert/Failure Coverage Checks (NEW in v1.6)
+☐ Every state-changing function has `@withrevert` coverage (dedicated rule or Liveness pattern)
+☐ Revert conditions documented in Phase 3 property blocks
+☐ Liveness assertions use biconditional `<=>` (not just implication `=>`)
+☐ `lastReverted` captured immediately after `@withrevert` calls (not overwritten)
+☐ Non-payable function reverts included in revert condition enumeration
+☐ Access control revert behavior verified (unauthorized → must revert)
+☐ No rule silently relies on default revert pruning for critical behavior
 
 🚨 If ANY check fails → **STOP** and fix before writing CVL
 

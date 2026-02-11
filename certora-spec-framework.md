@@ -838,55 +838,118 @@ invariant invariant_[name]([parameters])
 
 ### Rule Implementation Pattern
 
+> **CRITICAL: By default, the Prover ignores revert paths.** If you call `f(e, args)` without
+> `@withrevert`, any execution that reverts is silently pruned — your rule only proves the
+> "happy path" and leaves failure conditions unverified.
+>
+> **Use `@withrevert` whenever you need to reason about WHY a function succeeds or fails.**
+> Use the Liveness/Effect/No-Side-Effect pattern (Section 15 of cvl-language-deep-dive.md)
+> as the standard for complete verification.
+
+#### Pattern A: Success-Path-Only Rule (when failure behavior is verified separately)
+
 ```cvl
 /**
- * @title [RULE_NAME]
- * @notice [What this rule verifies]
+ * @title [RULE_NAME] — Success Path
+ * @notice [What this rule verifies about successful execution]
  * @dev Source: [security property document reference]
  *      Depends on invariants: [list]
+ *      Revert conditions: Verified separately in rule_[name]_revert
  */
 rule rule_[name](env e, [parameters]) 
     filtered {
-        // For parametric rules over methods
         f -> f.contract == currentContract
     }
 {
-    // ─────────────────────────────────────────────────────────────
     // STEP 1: Load valid state (MANDATORY)
-    // ─────────────────────────────────────────────────────────────
     validState();
     validEnv(e);
     
-    // ─────────────────────────────────────────────────────────────
     // STEP 2: Preconditions (ONLY contract-enforced ones)
-    // ─────────────────────────────────────────────────────────────
-    // Only use require for things Solidity actually checks
     require amount > 0;  // Only if Solidity has: require(amount > 0)
     
-    // ─────────────────────────────────────────────────────────────
     // STEP 3: Capture pre-state
-    // ─────────────────────────────────────────────────────────────
     uint256 balanceBefore = balanceOf(e.msg.sender);
     uint256 recipientBefore = balanceOf(recipient);
     uint256 totalBefore = totalSupply();
     
-    // ─────────────────────────────────────────────────────────────
-    // STEP 4: Execute action
-    // ─────────────────────────────────────────────────────────────
+    // STEP 4: Execute action (reverts pruned — verified in companion rule)
     transfer(e, recipient, amount);
     
-    // ─────────────────────────────────────────────────────────────
     // STEP 5: Assert post-conditions
-    // ─────────────────────────────────────────────────────────────
     assert balanceOf(e.msg.sender) == balanceBefore - amount,
         "Sender balance not decreased correctly";
-    
     assert balanceOf(recipient) == recipientBefore + amount,
         "Recipient balance not increased correctly";
-    
     assert totalSupply() == totalBefore,
         "Total supply changed during transfer";
 }
+```
+
+#### Pattern B: Complete Rule with Revert Verification (PREFERRED)
+
+```cvl
+/**
+ * @title [RULE_NAME] — Complete (Liveness + Effect + No Side Effect)
+ * @notice Verifies BOTH success and failure behavior
+ * @dev Source: [security property document reference]
+ *      Depends on invariants: [list]
+ */
+rule rule_[name]_complete(env e, [parameters]) {
+    // STEP 1: Load valid state
+    validState();
+    validEnv(e);
+    
+    // STEP 2: Capture pre-state
+    uint256 balanceBefore = balanceOf(e.msg.sender);
+    uint256 recipientBefore = balanceOf(recipient);
+    uint256 totalBefore = totalSupply();
+    
+    // STEP 3: Execute with revert tracking
+    transfer@withrevert(e, recipient, amount);
+    bool success = !lastReverted;
+    
+    // STEP 4: LIVENESS — enumerate ALL revert conditions
+    assert success <=> (
+        e.msg.sender != 0 &&
+        recipient != 0 &&
+        balanceBefore >= to_mathint(amount)
+    );
+    
+    // STEP 5: EFFECT — correct state changes on success
+    assert success => to_mathint(balanceOf(e.msg.sender)) == balanceBefore - to_mathint(amount);
+    assert success => to_mathint(balanceOf(recipient)) == recipientBefore + to_mathint(amount);
+    assert success => to_mathint(totalSupply()) == totalBefore;
+}
+```
+
+> **Why Pattern B is preferred:** It proves the function reverts **if and only if** the listed
+> conditions hold. If you miss a revert condition, the biconditional `<=>` fails. If the
+> function doesn't revert when it should, the biconditional also fails. This is the
+> industry-standard approach used in OpenZeppelin verification.
+
+#### Pattern C: Dedicated Revert Rule (companion to Pattern A)
+
+```cvl
+/**
+ * @title [RULE_NAME] — Revert Conditions
+ * @notice Proves that the function reverts if and only if specific conditions hold
+ */
+rule rule_[name]_revert(env e, [parameters]) {
+    // Capture all pre-state needed for revert analysis
+    uint256 balance = balanceOf(e.msg.sender);
+    
+    transfer@withrevert(e, recipient, amount);
+    
+    // Exhaustive revert enumeration
+    assert lastReverted <=> (
+        e.msg.value != 0 ||             // non-payable
+        e.msg.sender == 0 ||            // zero-address sender
+        recipient == 0 ||               // zero-address recipient
+        balance < to_mathint(amount)    // insufficient balance
+    );
+}
+```
 ```
 
 ### Parametric Rule Pattern (For "Any Function" Properties)
@@ -1045,6 +1108,20 @@ Before considering any spec complete, verify ALL items:
 | ☐ | e.msg.sender != currentContract constraint | Unless modeling reentrancy |
 | ☐ | No require for invariants (use requireInvariant) | Phase 3 |
 | ☐ | No assume for safety properties | Never |
+
+### Revert/Failure-Path Checklist (NEW in v1.6)
+
+| ✅ | Item | Notes |
+|----|------|-------|
+| ☐ | Every state-changing function has `@withrevert` coverage | At minimum in a dedicated revert rule |
+| ☐ | Liveness assertions use `<=>` (not just `=>`) | Biconditional ensures exhaustive revert enumeration |
+| ☐ | `lastReverted` captured immediately after each `@withrevert` call | Prevents overwriting by subsequent calls |
+| ☐ | Non-payable revert (`e.msg.value != 0`) included in liveness conditions | The Prover WILL find this |
+| ☐ | Access control reverts verified (unauthorized caller → revert) | Not just "authorized caller → success" |
+| ☐ | Overflow/underflow reverts verified where relevant | Especially for unchecked blocks |
+| ☐ | `use builtin rule uncheckedOverflow` run on contracts with unchecked blocks | Auto-catches unsafe unchecked math (v8.8.0+) |
+| ☐ | `use builtin rule safeCasting` run on contracts with explicit casts | Auto-catches out-of-bounds casts (v8.8.0+) |
+| ☐ | No rule relies solely on default revert pruning | If reverts are expected, they must be explicitly tested |
 
 ### Quality Checklist
 

@@ -1525,6 +1525,14 @@ certoraRun Bank.sol --verify Bank:Bank.spec --exclude_rule "slow_*"
 # Specific methods for parametric rules
 certoraRun Bank.sol --verify Bank:Bank.spec \
     --method "deposit(uint256)" --method "withdraw(uint256)"
+
+# Name-only method filtering (v8.8.0+) — matches ALL overloads
+certoraRun Bank.sol --verify Bank:Bank.spec \
+    --method "deposit" --method "withdraw"
+
+# Exclude methods by name (v8.8.0+) — name-only also supported
+certoraRun Bank.sol --verify Bank:Bank.spec \
+    --exclude_method "complexFunction"
 ```
 
 ---
@@ -1595,7 +1603,8 @@ Is your verification...
     │
     ├─► Focus on one rule → --rule <name>
     ├─► Exclude slow rules → --exclude_rule <pattern>
-    ├─► Specific methods → --method <signature>
+    ├─► Specific methods → --method <signature_or_name>
+    │   (v8.8.0+: name-only matches all overloads)
     └─► Split heavy rules → --split_rules <pattern>
 ```
 

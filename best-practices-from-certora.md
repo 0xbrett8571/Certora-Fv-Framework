@@ -803,6 +803,12 @@ require e.msg.sender != currentContract;  // Modeling constraint, not revert con
 □ Self-transfer edge case handled?                          ← NEW v1.5
 □ Non-payable functions have e.msg.value == 0 require?      ← NEW v1.5
 □ Liveness/Effect/No-Side-Effect pattern used?              ← NEW v1.5
+□ Every function rule uses @withrevert for revert coverage?  ← NEW v1.6
+□ Liveness uses <=> not just => (exhaustive revert list)?    ← NEW v1.6
+□ lastReverted captured immediately (not overwritten)?       ← NEW v1.6
+□ Failure conditions documented for each function?           ← NEW v1.6
+□ `use builtin rule uncheckedOverflow` for unchecked blocks? ← NEW v1.7
+□ `use builtin rule safeCasting` for explicit casts?         ← NEW v1.7
 ```
 
 ---

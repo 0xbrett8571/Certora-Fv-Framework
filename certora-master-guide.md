@@ -1705,6 +1705,12 @@ invariant myInvariant() condition { preserved { requireInvariant other(); } }
 
 // Rule
 rule myRule(args) filtered { f -> condition } { ... assert condition; }
+
+// Revert verification (NEW v1.6)
+f@withrevert(e, args);                   // Include revert paths in analysis
+bool success = !lastReverted;             // Capture revert status IMMEDIATELY
+assert success <=> (preconditions);       // Liveness: success iff conditions met
+assert lastReverted <=> (revert_causes);  // Exhaustive revert enumeration
 ```
 
 ## 12.3 File Checklist
@@ -1750,6 +1756,9 @@ Before considering verification complete:
 □ Prover: All rules PASS
 □ Review: No hidden trust assumptions
 □ Documentation: Decisions logged in spec_authoring.md
+□ Revert Coverage: Every state-changing function has @withrevert verification  ← NEW v1.6
+□ Liveness Assertions: Use <=> (biconditional) not just => (implication)    ← NEW v1.6
+□ No Silent Revert Pruning: No rule relies on default revert-ignore behavior ← NEW v1.6
 ```
 
 ---

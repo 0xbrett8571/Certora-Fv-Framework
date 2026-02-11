@@ -30,8 +30,36 @@ Determine whether the Certora counterexample represents:
 | **REAL BUG** | Reachable on-chain exploit under valid threat model | Report to development team |
 | **SPEC BUG** | Violation of execution reality or causal closure due to incomplete modeling | Fix the spec |
 | **OUT OF SCOPE** | Requires trusted role misbehavior within their powers | Document and exclude |
+| **SILENT PASS** | Rule passes because revert paths were pruned, not because behavior is correct | Add `@withrevert` | 
 
 ⚠️ **A counterexample is not evidence until execution AND causal closure are verified.**
+
+⚠️ **NEW v1.6 — A passing rule is not evidence of correctness if revert paths were silently pruned.**
+> By default, the Certora Prover ignores all execution paths that revert. This means:
+> - A rule that calls `f(e, args)` (without `@withrevert`) only proves the happy path
+> - If the function SHOULD revert under certain conditions, those conditions are never tested
+> - The rule passes — but the behavior is incompletely specified
+>
+> **Diagnosis:** If a rule passes "too easily" or you expected a counterexample but got none,
+> check whether the function is called without `@withrevert`. Add `@withrevert` and re-run.
+> If the rule now fails, the original pass was a **Silent Pass**.
+>
+> **Example:**
+> ```cvl
+> // PASSES — but only proves happy path (overflow is silently pruned)
+> rule add_check() {
+>     uint256 a; uint256 b;
+>     uint256 c = add(a, b);       // Reverts silently pruned!
+>     assert a + b == c;           // Only checked when add succeeds
+> }
+>
+> // FAILS — correctly exposes that overflow path is unhandled
+> rule add_check_complete() {
+>     uint256 a; uint256 b;
+>     uint256 c = add@withrevert(a, b);   // Revert paths included
+>     assert a + b == c;                  // Now tested for ALL inputs
+> }
+> ```
 
 ---
 

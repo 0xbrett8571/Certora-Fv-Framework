@@ -97,6 +97,22 @@ Use `assert_uint256` when you want to convert a boolean expression to 0/1 for ar
 assert_uint256(from != to ? 1 : 0)
 ```
 
+### Built-in Max Constants
+
+CVL provides a complete family of built-in constants for maximum values of each integer type. These are available without any import or declaration:
+
+| Constant | Value | Common Use |
+|----------|-------|------------|
+| `max_uint8` | $2^8 - 1 = 255$ | Enum bounds, small counters |
+| `max_uint16` | $2^{16} - 1 = 65535$ | Fee basis points |
+| `max_uint32` | $2^{32} - 1$ | Timestamps (pre-2106) |
+| `max_uint40` | $2^{40} - 1$ | Extended timestamps |
+| `max_uint64` | $2^{64} - 1$ | Rate accumulators |
+| `max_uint128` | $2^{128} - 1$ | Half-slot packing |
+| `max_uint256` | $2^{256} - 1$ | Standard balance/amount bounds |
+
+> **Note:** Use the built-in constants directly (`max_uint128`) rather than defining your own (`definition MAX_UINT128 returns mathint = 2^128 - 1`). The built-ins are recognized by the Prover and guaranteed correct.
+
 ### Casting Quick Reference
 
 | Cast | Behavior | Safety |
@@ -1474,6 +1490,114 @@ These appear in the Prover UI as expandable entries under each invariant. They'r
     "rule_sanity": "basic"     // default since v8.1.0
     // "rule_sanity": "advanced"  // more thorough
     // "rule_sanity": "none"      // disable sanity checks
+}
+```
+
+---
+
+## 19.1 Built-in Rules — Automated Safety Checks (NEW — Prover v8.8.0)
+
+Built-in rules are general-purpose verification rules provided by the Certora Prover. They check common vulnerability patterns **without writing any contract-specific rules**. Enable them with `use builtin rule <name>;` in your spec file.
+
+### Complete Built-in Rule Reference
+
+| Rule | Syntax | What It Checks | Conf Extras |
+|------|--------|----------------|-------------|
+| `sanity` | `use builtin rule sanity;` | At least one non-reverting path per function | None |
+| `deepSanity` | `use builtin rule deepSanity;` | Reachability of interesting program points (if/else branches, external calls) | `--multi_assert_check` |
+| `msgValueInLoopRule` | `use builtin rule msgValueInLoopRule;` | Detects `msg.value` usage or delegate calls inside loops | None |
+| `hasDelegateCalls` | `use builtin rule hasDelegateCalls;` | Detects any delegate call in any function | None |
+| `viewReentrancy` | `use builtin rule viewReentrancy;` | Read-only reentrancy: ensures view functions return consistent values during external calls | None |
+| `safeCasting` | `use builtin rule safeCasting;` | Whether any Solidity cast can be out of bounds (e.g., `uint16(x)` where `x > 2^16 - 1`) | `"safe_casting_builtin": true` |
+| `uncheckedOverflow` | `use builtin rule uncheckedOverflow;` | Whether `+`, `-`, `*` in `unchecked` blocks can overflow/underflow | `"unchecked_overflow_builtin": true` |
+
+### `uncheckedOverflow` — Catching Unsafe Unchecked Arithmetic
+
+Solidity `unchecked` blocks disable overflow/underflow protection for gas optimization. The `uncheckedOverflow` builtin rule automatically verifies that every arithmetic operation (`+`, `-`, `*`) inside these blocks is actually safe.
+
+```cvl
+// In your .spec file:
+use builtin rule uncheckedOverflow;
+```
+
+```json
+// In your .conf file — REQUIRED:
+{
+    "unchecked_overflow_builtin": true
+}
+```
+
+**How it works:** For each external method, the Prover analyzes every reachable unchecked arithmetic operation. If any combination of inputs can cause overflow/underflow, the rule fails for that method+operation pair.
+
+**Example — this will fail:**
+```solidity
+function basicMul(uint128 x, uint128 y) public pure returns (uint) {
+    unchecked {
+        return x * y;  // uint128 * uint128 CAN overflow uint128
+    }
+}
+```
+
+> **When to use:** Run `uncheckedOverflow` early in every verification project. It catches exactly the bugs that `mathint` catches in CVL — but at the Solidity level, automatically, without writing a single rule.
+
+### `safeCasting` — Catching Unsafe Type Narrowing
+
+Solidity's explicit cast operators (like `uint16(x)`) silently truncate values without reverting. The `safeCasting` builtin rule automatically verifies that every reachable cast operation is in bounds.
+
+```cvl
+// In your .spec file:
+use builtin rule safeCasting;
+```
+
+```json
+// In your .conf file — REQUIRED:
+{
+    "safe_casting_builtin": true
+}
+```
+
+**What it catches:**
+- Unsigned narrowing: `uint16(x)` where `x > 2^16 - 1`
+- Signed/unsigned: `int16(x)` where `x > 2^15 - 1` (for unsigned to signed)
+- Signed narrowing: `int8(x)` where `x < -128` or `x > 127`
+
+> **Relationship to `require_uint256`:** This is the Solidity-level complement to CVL's `require_uint256` danger. While `require_uint256` masks overflow in specs, `safeCasting` catches truncation in the contract itself.
+
+### `--assume_no_casting_overflow` — Suppressing Cast Warnings
+
+```json
+// In your .conf file:
+{
+    "assume_no_casting_overflow": true
+}
+```
+
+This flag tells the Prover to **assume** all casts are in bounds. Use it only when:
+- You've already verified casts are safe (via `safeCasting` or manual review)
+- Cast range failures are causing noise in unrelated rules
+- You want to focus verification on non-casting properties
+
+> ⚠️ **This is an underapproximation** — Solidity does NOT revert on out-of-bounds casts. Using this flag hides real truncation bugs. Always run `safeCasting` first before suppressing.
+
+### Recommended Builtin Rule Strategy
+
+```cvl
+// Phase 0 — Run BEFORE writing any custom rules:
+use builtin rule sanity;            // Can all methods execute?
+use builtin rule uncheckedOverflow;  // Any unsafe unchecked math?
+use builtin rule safeCasting;        // Any unsafe casts?
+
+// Phase 1 — Run alongside custom rules:
+use builtin rule viewReentrancy;     // Read-only reentrancy?
+use builtin rule msgValueInLoopRule;  // msg.value in loops?
+use builtin rule hasDelegateCalls;    // Unexpected delegates?
+```
+
+```json
+// Corresponding .conf extras:
+{
+    "unchecked_overflow_builtin": true,
+    "safe_casting_builtin": true
 }
 ```
 

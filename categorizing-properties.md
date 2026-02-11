@@ -342,6 +342,8 @@ How categories here relate to categories in `SPEC AUTHORING (CERTORA).md`:
 | Mixing two truth owners | Creates causally unclosed property | Split into separate properties |
 | Assuming trusted roles | Hidden threat model assumption | Mark "OUT OF SCOPE" explicitly |
 | No unique IDs | Can't track through phases | Use A1, A2, B1, C1 format |
+| Not documenting revert conditions | Leaves failure behavior undefined ← NEW v1.6 | Add "MUST REVERT WHEN" to each function property |
+| Only writing "SHOULD ALWAYS" | Misses attacker perspective and failure paths ← NEW v1.6 | Use triple: SHOULD ALWAYS + SHOULD NEVER + MUST REVERT WHEN |
 
 ---
 
@@ -410,6 +412,29 @@ For each function/state, ask:
 | What allows reentrancy? | "State inconsistent mid-call" |
 | What front-runs users? | "Sandwich attack on swap" |
 
+### Revert Behavior Checklist (MUST REVERT WHEN) ← NEW v1.6
+
+> **Why this matters:** By default, the Certora Prover ignores revert paths.
+> If you don't explicitly model revert conditions with `@withrevert`,
+> the behavior is undefined in your spec. Proving WHY something reverts
+> is as important as proving WHY it succeeds.
+
+For each state-changing function, ask:
+
+| Question | Example Property |
+|----------|------------------|
+| When should this function refuse to execute? | "withdraw() must revert when balance < amount" |
+| What prevents unauthorized access? | "pause() must revert when caller != owner" |
+| What overflow/underflow conditions cause failure? | "mint() must revert when totalSupply + amount > max_uint256" |
+| What precondition violations cause failure? | "transfer() must revert when sender == address(0)" |
+| What state conditions prevent execution? | "claimReward() must revert when system is paused" |
+| What timing conditions prevent execution? | "execute() must revert when block.timestamp < unlockTime" |
+
+> **Connection to CVL:**
+> Each "MUST REVERT WHEN" property becomes a `@withrevert` + `lastReverted` assertion in Phase 7.
+> The strongest form uses biconditional: `assert lastReverted <=> (condition1 || condition2 || ...)`
+> This proves the function reverts **if and only if** the listed conditions hold.
+
 ### Template: Dual Property Documentation
 
 ```markdown
@@ -420,6 +445,9 @@ For each function/state, ask:
 
 **WRONG (Should Never):**
 > "Even if [adversarial condition], [bad outcome] must never occur."
+
+**REVERT (Must Revert When):** ← NEW v1.6
+> "Function [name] must revert when [failure condition]."
 
 **Variables:** [list]
 **Attack Vector if Wrong:** [describe exploit]
@@ -435,6 +463,9 @@ For each function/state, ask:
 
 **WRONG (Should Never):**
 > "Even with multiple rapid withdrawals, a user must never withdraw more than their balance."
+
+**REVERT (Must Revert When):** ← NEW v1.6
+> "withdraw(amount) must revert when: balance[user] < amount, OR user == address(0), OR system is paused."
 
 **Variables:** userBalance[user], totalSupply
 **Attack Vector if Wrong:** Drain contract via integer underflow or reentrancy

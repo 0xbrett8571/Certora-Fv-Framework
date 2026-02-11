@@ -1058,7 +1058,115 @@ rule transferFrom(env e) {
 }
 ```
 
-### 3.11 Supply Change Authorization
+### 3.11 SafeMint Verification (Callback-Aware)
+
+`safeMint` extends `mint` with an `onERC721Received` callback. The callback can reject the token (revert), which adds a distinct liveness condition:
+
+```cvl
+rule safeMint(env e) {
+    require nonpayable(e);
+    require nonzerosender(e);
+
+    address to; uint256 tokenId;
+
+    require balanceLimited(to);
+    requireInvariant ownerHasBalance(tokenId);
+
+    // Pre-state
+    address ownerBefore = unsafeOwnerOf(tokenId);
+    mathint supplyBefore = _supply;
+    mathint balOfToBefore = balanceOf(to);
+
+    // Side-effect witnesses
+    address otherAccount;
+    uint256 otherTokenId;
+    mathint balOfOtherBefore = balanceOf(otherAccount);
+    address otherOwnerBefore = unsafeOwnerOf(otherTokenId);
+
+    // Action
+    mint@withrevert(e, to, tokenId); // Same underlying _safeMint in harness
+    bool success = !lastReverted;
+
+    // LIVENESS — same as mint conditions PLUS callback must not reject
+    // If ownerBefore == 0 && to != 0 but success is false → callback rejected
+    // This is caught implicitly: the <=> enumerates success preconditions,
+    // and the DISPATCHER'd mock receiver always returns the correct selector.
+    // In production, write separate callback-rejection test:
+    assert success <=> (ownerBefore == 0 && to != 0);
+
+    // EFFECT — identical to mint
+    assert success => (
+        _supply == supplyBefore + 1 &&
+        to_mathint(balanceOf(to)) == balOfToBefore + 1 &&
+        unsafeOwnerOf(tokenId) == to
+    );
+
+    // NO SIDE EFFECT
+    assert balanceOf(otherAccount) != balOfOtherBefore => otherAccount == to;
+    assert unsafeOwnerOf(otherTokenId) != otherOwnerBefore => otherTokenId == tokenId;
+}
+```
+
+> **Callback coverage note:** The mock receiver (`ERC721ReceiverHarness`) always returns the correct selector. To test callback rejection, create a second receiver that reverts, and verify the liveness assertion captures the failure. The biconditional `<=>` will fail if a path exists where preconditions hold but the call reverts (callback rejection), which is the correct behavior to detect.
+
+### 3.12 SafeTransferFrom Verification (Callback-Aware)
+
+```cvl
+rule safeTransferFrom(env e) {
+    require nonpayable(e);
+    require nonzerosender(e);
+
+    address from; address to; uint256 tokenId;
+
+    require balanceLimited(to);
+    requireInvariant ownerHasBalance(tokenId);
+    requireInvariant balanceEqualsOwnedCount(from);
+    requireInvariant balanceEqualsOwnedCount(to);
+
+    // Pre-state
+    address ownerBefore = unsafeOwnerOf(tokenId);
+    address approvedBefore = unsafeGetApproved(tokenId);
+    bool isOperator = isApprovedForAll(from, e.msg.sender);
+    mathint fromBalBefore = balanceOf(from);
+    mathint toBalBefore = balanceOf(to);
+
+    // Side-effect witnesses
+    address otherAccount;
+    uint256 otherTokenId;
+    mathint otherBalBefore = balanceOf(otherAccount);
+    address otherOwnerBefore = unsafeOwnerOf(otherTokenId);
+
+    // Action
+    safeTransferFrom@withrevert(e, from, to, tokenId);
+    bool success = !lastReverted;
+
+    // LIVENESS — same authorization as transferFrom, plus callback must accept
+    assert success <=> (
+        ownerBefore == from &&
+        from != 0 &&
+        to != 0 &&
+        (e.msg.sender == from || e.msg.sender == approvedBefore || isOperator)
+    );
+
+    // EFFECT
+    assert success => unsafeOwnerOf(tokenId) == to;
+    assert success => unsafeGetApproved(tokenId) == 0;  // Approval cleared
+
+    // Balance changes depend on self-transfer
+    assert success => to_mathint(balanceOf(from)) ==
+        fromBalBefore - assert_uint256(from != to ? 1 : 0);
+    assert success => to_mathint(balanceOf(to)) ==
+        toBalBefore + assert_uint256(from != to ? 1 : 0);
+
+    // NO SIDE EFFECT
+    assert balanceOf(otherAccount) != otherBalBefore =>
+        (otherAccount == from || otherAccount == to);
+    assert unsafeOwnerOf(otherTokenId) != otherOwnerBefore =>
+        otherTokenId == tokenId;
+}
+```
+
+### 3.13 Supply Change Authorization
 
 ```cvl
 rule supplyChangeRestriction(env e) {
@@ -1143,6 +1251,14 @@ rule approve(env e) {
 ### 4.1 The Four-Phase System
 
 ```
+Phase 0: BUILTIN SAFETY SCAN (NEW — v8.8.0)
+├── use builtin rule sanity           →  Can all methods execute?
+├── use builtin rule uncheckedOverflow →  Any unsafe unchecked math?
+├── use builtin rule safeCasting       →  Any unsafe type casts?
+├── use builtin rule viewReentrancy    →  Read-only reentrancy?
+├── use builtin rule msgValueInLoopRule →  msg.value in loops?
+└── use builtin rule hasDelegateCalls  →  Unexpected delegates?
+
 Phase 1: FUNCTION CORRECTNESS
 ├── For each external function:
 │   ├── Liveness: assert success <=> (preconditions)
@@ -1210,7 +1326,271 @@ When writing `assert lastReverted <=> (conditions)`:
 | String in Solidity | "Unwinding condition" error | Set `--loop_iter 4` or higher |
 | Computed storage slots | Hook never fires | Use `filtered` block, document limitation |
 | `msg.sender == currentContract` | Paradoxical state in invariant | Add `require e.msg.sender != currentContract` |
+| Unchecked block overflow not caught | Manual rules miss edge cases | Run `use builtin rule uncheckedOverflow` (v8.8.0+) |
+| Silent cast truncation | `uint16(x)` silently wraps | Run `use builtin rule safeCasting` (v8.8.0+) |
 
 ---
 
-*This document is part of the Certora-Fv-Framework v1.5 (RareSkills Integration). Knowledge sourced from the RareSkills Certora Book — a collaboration between RareSkills and Certora.*
+## 5. Initializable Verification Playbook (Proxy Pattern) — NEW v1.6
+
+### 5.1 Overview
+
+OpenZeppelin's `Initializable` pattern replaces constructors in upgradeable proxy contracts. Key properties:
+- `initialize()` can only be called once
+- `reinitialize(version)` can bump to a higher version but not same/lower
+- `_disableInitializers()` permanently locks initialization
+- Storage layout: `uint64 _initialized` (version), `bool _initializing`
+
+### 5.2 Harness Contract
+
+```solidity
+// InitializableHarness.sol
+pragma solidity ^0.8.0;
+
+import {Initializable} from "./Initializable.sol";
+
+contract InitializableHarness is Initializable {
+    uint256 public value;
+
+    function initialize(uint256 _value) public initializer {
+        value = _value;
+    }
+
+    function reinitialize(uint256 _value, uint64 version) public reinitializer(version) {
+        value = _value;
+    }
+
+    function disableInit() public {
+        _disableInitializers();
+    }
+
+    // Expose internal state for verification
+    function getInitializedVersion() public view returns (uint64) {
+        return _getInitializedVersion();
+    }
+
+    function isInitializing() public view returns (bool) {
+        return _isInitializing();
+    }
+}
+```
+
+### 5.3 Specification
+
+```cvl
+methods {
+    function getInitializedVersion() external returns (uint64) envfree;
+    function isInitializing() external returns (bool) envfree;
+    function value() external returns (uint256) envfree;
+}
+
+definition nonpayable(env e) returns bool = e.msg.value == 0;
+
+// Core invariant: not in "initializing" state between transactions
+invariant notInitializing()
+    !isInitializing();
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Rule: initialize can only be called when version is 0
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+rule initializeEffects(env e) {
+    require nonpayable(e);
+    requireInvariant notInitializing();
+
+    uint64 versionBefore = getInitializedVersion();
+    uint256 newValue;
+
+    initialize@withrevert(e, newValue);
+    bool success = !lastReverted;
+
+    // LIVENESS — succeeds iff not yet initialized
+    assert success <=> (versionBefore == 0);
+
+    // EFFECT — state is updated and version becomes 1
+    assert success => (value() == newValue && getInitializedVersion() == 1);
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Rule: cannot initialize twice
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+rule cannotInitializeTwice(env e1, env e2) {
+    require nonpayable(e1);
+    require nonpayable(e2);
+    requireInvariant notInitializing();
+
+    uint256 val1; uint256 val2;
+
+    initialize(e1, val1);  // First call succeeds (implicitly — no @withrevert)
+
+    initialize@withrevert(e2, val2);  // Second call
+    assert lastReverted, "initialize must not succeed twice";
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Rule: reinitialize only advances version
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+rule reinitializeEffects(env e) {
+    require nonpayable(e);
+    requireInvariant notInitializing();
+
+    uint64 versionBefore = getInitializedVersion();
+    uint256 newValue; uint64 newVersion;
+
+    reinitialize@withrevert(e, newValue, newVersion);
+    bool success = !lastReverted;
+
+    // LIVENESS — succeeds iff new version is strictly greater
+    assert success <=> (newVersion > versionBefore);
+
+    // EFFECT
+    assert success => (
+        value() == newValue &&
+        getInitializedVersion() == newVersion
+    );
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Rule: disableInitializers permanently locks
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+rule disableEffect(env e1, env e2) {
+    require nonpayable(e1);
+    require nonpayable(e2);
+    requireInvariant notInitializing();
+
+    disableInit(e1);  // Disable initializers
+
+    // After disable, getInitializedVersion() == max_uint64
+    assert getInitializedVersion() == max_uint64;
+
+    // Any subsequent initialize or reinitialize must revert
+    uint256 val; uint64 ver;
+
+    initialize@withrevert(e2, val);
+    assert lastReverted, "initialize must revert after disable";
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Rule: version monotonicity — can never decrease
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+rule versionMonotonicity(env e) {
+    requireInvariant notInitializing();
+
+    uint64 versionBefore = getInitializedVersion();
+
+    method f; calldataarg args;
+    f(e, args);
+
+    uint64 versionAfter = getInitializedVersion();
+
+    assert to_mathint(versionAfter) >= to_mathint(versionBefore),
+        "version must never decrease";
+}
+```
+
+---
+
+## 6. Nonces Verification Playbook (OpenZeppelin Pattern) — NEW v1.6
+
+### 6.1 Overview
+
+Nonces provide replay protection — each nonce is used exactly once and monotonically increases. Key properties:
+- Nonces start at 0
+- Each `useNonce` increments by exactly 1
+- Nonces never skip or repeat
+- `useCheckedNonce` reverts if the provided nonce doesn't match current
+
+### 6.2 Specification
+
+```cvl
+methods {
+    function nonces(address) external returns (uint256) envfree;
+}
+
+definition nonpayable(env e) returns bool = e.msg.value == 0;
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Rule: useNonce increments by exactly 1
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+rule useNonce(env e) {
+    require nonpayable(e);
+
+    address account = e.msg.sender;
+    mathint nonceBefore = nonces(account);
+
+    // Side-effect witness
+    address otherAccount;
+    mathint otherNonceBefore = nonces(otherAccount);
+
+    useNonce@withrevert(e);
+    bool success = !lastReverted;
+
+    // LIVENESS — succeeds iff nonce won't overflow
+    assert success <=> (nonceBefore < max_uint256);
+
+    // EFFECT — nonce increments by exactly 1
+    assert success => to_mathint(nonces(account)) == nonceBefore + 1;
+
+    // NO SIDE EFFECT — only caller's nonce changes
+    assert nonces(otherAccount) != otherNonceBefore => otherAccount == account;
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Rule: useCheckedNonce only succeeds with correct nonce
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+rule useCheckedNonce(env e) {
+    require nonpayable(e);
+
+    address account = e.msg.sender;
+    uint256 expectedNonce;
+    mathint nonceBefore = nonces(account);
+
+    useCheckedNonce@withrevert(e, expectedNonce);
+    bool success = !lastReverted;
+
+    // LIVENESS — succeeds iff provided nonce matches current
+    assert success <=> (to_mathint(expectedNonce) == nonceBefore);
+
+    // EFFECT — same as useNonce
+    assert success => to_mathint(nonces(account)) == nonceBefore + 1;
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Rule: nonces only ever increase (parametric)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+rule nonceMonotonicity(env e) {
+    address account;
+    mathint nonceBefore = nonces(account);
+
+    method f; calldataarg args;
+    f(e, args);
+
+    mathint nonceAfter = nonces(account);
+
+    assert nonceAfter >= nonceBefore, "nonce must never decrease";
+    assert nonceAfter > nonceBefore => nonceAfter == nonceBefore + 1,
+        "nonce can only increment by 1";
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Rule: only nonce-consuming functions change nonces
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+rule nonceChangeRestriction(env e) {
+    address account;
+    mathint nonceBefore = nonces(account);
+
+    method f; calldataarg args;
+    f(e, args);
+
+    mathint nonceAfter = nonces(account);
+
+    // Only these functions can change a nonce
+    assert nonceAfter != nonceBefore => (
+        f.selector == sig:useNonce().selector ||
+        f.selector == sig:useCheckedNonce(uint256).selector
+    );
+}
+```
+
+---
+
+*This document is part of the Certora-Fv-Framework v1.6 (Revert/Failure-Path Coverage). Knowledge sourced from the RareSkills Certora Book — a collaboration between RareSkills and Certora.*
