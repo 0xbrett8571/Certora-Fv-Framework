@@ -1776,7 +1776,8 @@ I am starting a formal verification project using Certora for the following cont
 **Project Location:** [/path/to/project]
 **Primary Target Contract:** [ContractName.sol at path/to/contract]
 **Contract Dependencies:** [List the files that the target imports]
-**Token Standard (if any):** [ERC-20 / ERC-721 / WETH / None]
+**Token Standard (if any):** [ERC-20 / ERC-721 / ERC-2771 / WETH / None]
+**Uses unchecked{} or assembly?** [Yes/No]  ← NEW v1.7
 
 Please help me follow the certora-master-guide.md workflow:
 
@@ -1790,13 +1791,20 @@ Please help me follow the certora-master-guide.md workflow:
    - All storage variables
    - All external calls
    - All modifiers/access control
+   - All `unchecked{}` blocks and type casts ← NEW v1.7
+4. Run Phase 0 Builtin Safety Scan (if Prover v8.8.0+):  ← NEW v1.7
+   - `use builtin rule uncheckedOverflow;` to detect unchecked arithmetic
+   - `use builtin rule safeCasting;` to detect unsafe type narrowing
+   - Triage results before writing any custom rules
 
 The framework documents are already in my project root.
 
-**Key v1.5 references to use throughout:**
-- cvl-language-deep-dive.md — Complete CVL language reference (types, ghosts, hooks, operators)
-- verification-playbooks.md — Worked examples for ERC-20, WETH, and ERC-721
+**Key references to use throughout (v1.7):**
+- cvl-language-deep-dive.md — Complete CVL language reference (types, ghosts, hooks, operators, builtin rules §19.1)
+- verification-playbooks.md — Worked examples for ERC-20, WETH, ERC-721 + Phase 0 builtin scan
 - best-practices-from-certora.md — Sections 7-9 (vacuity defense, requireInvariant lifecycle, edge cases)
+- certora-spec-framework.md — Revert/failure-path patterns (Pattern B: @withrevert PREFERRED)
+- categorizing-properties.md — MUST REVERT WHEN checklist for property discovery
 ```
 
 ## 13.2 For Continuing Phase 0 / Phase -1
@@ -1809,11 +1817,16 @@ Continue the Certora verification for [ContractName]:
 
 Please analyze the contract and help me fill in the spec_authoring document:
 - Phase 0: Entry points, storage variables, asset flows
+- Phase 0: Identify all `unchecked{}` blocks and type-narrowing casts  ← NEW v1.7
+- Phase 0: Run builtin safety scan (`uncheckedOverflow`, `safeCasting`)  ← NEW v1.7
 - Phase -1: External contracts, interaction ownership table, modeling decisions
+- Phase -1: For each external call, document revert conditions  ← NEW v1.6
 
 Reference: 
 - certora-master-guide.md sections 3 and 4
 - best-practices-from-certora.md Section 4 (harness patterns if needed)
+- cvl-language-deep-dive.md §19.1 (builtin rules reference table)  ← NEW v1.7
+- spec-authoring-certora.md Phase 3 (revert/failure behavior field)  ← NEW v1.6
 ```
 
 ## 13.3 For Phase 2 (Property Discovery)
@@ -1829,18 +1842,26 @@ Based on the Phase 0/-1 analysis, help me discover security properties using cat
 - State Transitions (function effects)
 - System-Level (aggregates, sums)
 - Access Control (who can do what)
+- **Revert Behavior (MUST REVERT WHEN)**  ← NEW v1.6
 
-**NEW v1.3:** Also apply:
+**Apply these techniques:**
 - Property prioritization (HIGH/MEDIUM/LOW) - categorizing-properties.md Section 7
 - Dual mindset (Should Always / Should Never) - Section 5
 - Test mining (extract from existing tests) - Section 6
 - Avoid the 4 fatal mistakes - BEST_PRACTICES Section 1
 
-**NEW v1.5:** For each function, consider the Liveness/Effect/No-Side-Effect triple:
-- Liveness: assert success <=> (preconditions)
-- Effect: assert success => (state_changes)
-- No Side Effect: assert uninvolved_state unchanged
+**For each function, consider the Liveness/Effect/No-Side-Effect triple:**
+- Liveness: `assert success <=> (preconditions)` — use biconditional, not implication
+- Effect: `assert success => (state_changes)`
+- No Side Effect: `assert uninvolved_state unchanged`
 See verification-playbooks.md Section 4 and cvl-language-deep-dive.md Section 15.
+
+**v1.6 — For each state-changing function, also enumerate revert conditions:**
+- Use the MUST REVERT WHEN checklist (categorizing-properties.md)
+- Document: What caller restrictions cause revert?
+- Document: What input validation causes revert?
+- Document: What state preconditions cause revert?
+- Fill in the REVERT field in each property template
 
 Output should go into: spec_authoring/{target}_candidate_properties.md
 ```
@@ -1860,16 +1881,20 @@ Please help me discover properties using the DUAL MINDSET approach:
    - Extract implicit invariants from test assertions
    - Identify threat assumptions
    - Note blind spots (what's NOT tested)
+   - Check: do tests cover revert paths? (vm.expectRevert)  ← NEW v1.6
 
 **2. RIGHT/WRONG behavior enumeration:**
    - For each critical function, document:
      - SHOULD ALWAYS: "When X, Y should always happen"
      - SHOULD NEVER: "Even if X, Y must never happen"
+     - MUST REVERT WHEN: "If X, the call must revert"  ← NEW v1.6
 
 **3. Categorize all properties:**
-   - Valid States / State Transitions / System-Level / Threat-Driven
+   - Valid States / State Transitions / System-Level / Threat-Driven / Revert Behavior
 
-Reference: categorizing-properties.md sections 5 and 6 (Dual Checklist & Test Mining)
+Reference:
+- categorizing-properties.md sections 5 and 6 (Dual Checklist & Test Mining)
+- categorizing-properties.md MUST REVERT WHEN checklist (6 questions)  ← NEW v1.6
 ```
 
 ## 13.4 For Phase 3.5 (Causal Validation)
@@ -1885,11 +1910,17 @@ Create the validation spec and conf to verify mutation paths are complete:
 2. Create certora/confs/validation_{target}.conf
 3. Include validation rules for each INVARIANT variable
 4. Include ghost synchronization tests if ghosts are needed
+5. Include revert validation: for each state-changing function, write a  ← NEW v1.6
+   `@withrevert` rule confirming revert conditions are exhaustive
+6. If using Prover v8.8.0+, include `use builtin rule sanity;` to catch  ← NEW v1.7
+   vacuous rules early
 
 Reference:
 - certora-master-guide.md section 7
 - cvl-language-deep-dive.md Sections 8-9 (ghost declaration, init_state axiom, hook syntax)
+- cvl-language-deep-dive.md §19.1 (builtin rules — sanity, deepSanity)  ← NEW v1.7
 - best-practices-from-certora.md Section 8 (require → requireInvariant lifecycle)
+- certora-spec-framework.md Revert/Failure-Path Checklist  ← NEW v1.6
 ```
 
 ## 13.5 For Phase 7 (Validation PASSED → Write Real Spec)
@@ -1909,14 +1940,20 @@ Please help me create the real spec:
 4. Use the Liveness/Effect/No-Side-Effect pattern for each function rule
 5. Add standard `definition` blocks (nonpayable, nonzerosender, balanceLimited)
 6. Use `requireInvariant` (not raw `require`) for proven invariant preconditions
-7. Create certora/specs/{Contract}.spec
-8. Create certora/confs/{Contract}.conf
+7. For EVERY state-changing function, write @withrevert rules  ← NEW v1.6
+   using Pattern B (Complete with biconditional <=>) as the PREFERRED pattern
+8. Add `use builtin rule uncheckedOverflow;` and/or `safeCasting;`  ← NEW v1.7
+   if the contract uses unchecked{} blocks or type-narrowing casts
+9. Create certora/specs/{Contract}.spec
+10. Create certora/confs/{Contract}.conf
 
 Reference:
 - certora-master-guide.md section 9.0 (Transition from Validation to Real Spec)
 - cvl-language-deep-dive.md (complete CVL reference — types, operators, ghosts, hooks, definitions)
+- cvl-language-deep-dive.md §19.1 (builtin rules — uncheckedOverflow, safeCasting)  ← NEW v1.7
 - verification-playbooks.md (if ERC-20/721/WETH — follow the complete worked example)
-- certora-spec-framework.md (CVL syntax patterns + Liveness/Effect/No-Side-Effect template)
+- certora-spec-framework.md (CVL syntax patterns + Revert/Failure-Path Checklist)  ← updated v1.6
+- certora-spec-framework.md Pattern B: Complete with @withrevert (PREFERRED)  ← NEW v1.6
 - best-practices-from-certora.md Sections 3, 7-9 (invariant patterns, vacuity defense, lifecycle, edge cases)
 - quick-reference-v1.3.md (keep open for syntax lookup)
 ```
@@ -1928,21 +1965,31 @@ I need to verify a [ERC-20 / ERC-721 / WETH] token contract:
 
 **Target:** [path/to/TokenContract.sol]
 **Standard:** [ERC-20 / ERC-721 / WETH]
+**Prover Version:** [v8.8.0+ / older]  ← NEW v1.7
 **Non-standard features:** [mint/burn access control, fee-on-transfer, rebasing, etc.]
+**Uses unchecked{} or assembly?** [Yes/No]  ← NEW v1.7
 
 Please use the verification-playbooks.md as the primary reference:
+
+**Phase 0 — Builtin Safety Scan (do this FIRST if Prover v8.8.0+):**  ← NEW v1.7
+- Run `use builtin rule uncheckedOverflow;` — tokens often use unchecked{} for gas savings
+- Run `use builtin rule safeCasting;` — catch silent truncation in balance/amount casts
+- Triage findings before proceeding to custom rules
 
 **For ERC-20:** Follow Section 1 (22-rule playbook with 4-phase methodology):
 - Phase 1: Function correctness (transfer, transferFrom, approve, mint, burn)
 - Phase 2: No side effects on uninvolved accounts
 - Phase 3: Global invariants (totalSupply == sumOfBalances, individual cap, zero-address)
 - Phase 4: Authorization (only mint/burn change supply, only transfer changes balances)
+- **Every function rule must use @withrevert + biconditional <=>**  ← NEW v1.6
 
 **For ERC-721:** Follow Section 3 (OpenZeppelin pattern):
 - Create harness with unsafeOwnerOf/unsafeGetApproved (non-reverting getters)
 - Create ERC721ReceiverHarness for DISPATCHER callback resolution
 - Use helperSoundFnCall for partially parametric rules
 - Handle mint/burn/transferFrom with ownership tracking ghost + hook
+- **Verify safeMint/safeTransferFrom callback revert behavior**  ← NEW v1.6
+  (See verification-playbooks.md §3.11-3.12)
 
 **For WETH:** Follow Section 2 (Solady pattern):
 - Prove solvency invariant: nativeBalances[currentContract] >= totalSupply()
@@ -1951,7 +1998,9 @@ Please use the verification-playbooks.md as the primary reference:
 
 Also reference:
 - cvl-language-deep-dive.md (mathint, satisfy, <=>, @withrevert, persistent ghost, definitions)
+- cvl-language-deep-dive.md §19.1 (builtin rules for overflow/casting)  ← NEW v1.7
 - best-practices-from-certora.md Section 9 (self-transfer edge case)
+- certora-spec-framework.md Pattern B: @withrevert (PREFERRED)  ← NEW v1.6
 ```
 
 ## 13.6 For Debugging Counterexamples
@@ -1963,15 +2012,21 @@ I have a failing rule in my Certora verification:
 **Failing Rule:** [rule name]
 **Error/CE Summary:** [paste the counterexample or error]
 **Ghost variables involved (if any):** [ghost names]
+**Rule uses @withrevert?** [Yes/No]  ← NEW v1.6
 
 Please help me diagnose using the systematic approach:
 1. Is this a REAL bug or SPURIOUS result?
 2. If spurious, what modeling is missing?
 3. If real, what's the attack vector?
 4. If ghost values look wrong, is it a havocing issue?
+5. Is this a SILENT PASS (rule passes but revert paths were pruned)?  ← NEW v1.6
+   - Does the rule use @norevert (default) and silently skip failure cases?
+   - Would adding @withrevert reveal a hidden revert path?
+   - Is an implication (=>) masking a missing biconditional (<=>)?
 
 Reference:
 - certora-ce-diagnosis-framework.md (comprehensive 5-phase diagnosis + ghost havocing guide)
+- certora-ce-diagnosis-framework.md SILENT PASS classification  ← NEW v1.6
 - best-practices-from-certora.md Section 2 (5-step investigation workflow from Tutorial Lesson 02)
 - cvl-language-deep-dive.md Section 4 (vacuous truth — is the rule trivially passing?)
 - cvl-language-deep-dive.md Section 8 (ghost havocing — when/why ghosts get arbitrary values)
@@ -2008,6 +2063,8 @@ When starting any verification conversation, always include:
 | **Dependencies** | `imports Token.sol, Oracle.sol, Utils.sol` |
 | **Current phase** | Phase 0 / -1 / 2 / 2.5 / 3.5 / 7 |
 | **Token standard** | ERC-20 / ERC-721 / WETH / None |
+| **Prover version** | v8.8.0+ / older ← NEW v1.7 |
+| **unchecked{}/assembly?** | Yes / No ← NEW v1.7 |
 
 **Optional but helpful:**
 - Known external integrations (ERC20, Chainlink, Uniswap, etc.)
@@ -2015,6 +2072,8 @@ When starting any verification conversation, always include:
 - Existing tests or known issues
 - Non-standard features (fee-on-transfer, rebasing, computed storage slots)
 - Assembly usage (low-level calls, inline assembly)
+- Whether the contract uses `unchecked{}` blocks (triggers builtin overflow scan)  ← NEW v1.7
+- Type-narrowing casts like `uint128(x)` (triggers builtin safeCasting scan)  ← NEW v1.7
 
 ---
 

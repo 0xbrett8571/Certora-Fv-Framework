@@ -1,7 +1,32 @@
 # Framework Version History
 
-> **Current Version:** 1.7 (Prover v8.8.0 Built-in Rules)  
+> **Current Version:** 1.7.1 (Quick Start Prompts Update)  
 > **Last Updated:** February 2026
+
+---
+
+## Version 1.7.1 (Quick Start Prompts Update) - February 2026
+
+### Rationale
+Section 13 (Quick Start Chat Prompts) in `certora-master-guide.md` was still written for v1.5 and did not reflect any of the v1.6 (revert/failure-path coverage) or v1.7 (Prover v8.8.0 builtin rules) additions. Every prompt template was updated to surface these capabilities so AI-assisted verification sessions use the full framework from the start.
+
+### Changes (certora-master-guide.md Section 13)
+
+| Prompt | v1.6 Additions | v1.7 Additions |
+|--------|----------------|----------------|
+| **13.1** New project | Revert coverage refs, Pattern B reference | Prover version field, builtin scan step, `unchecked{}` field |
+| **13.2** Phase 0/-1 | Revert condition documentation per call | Builtin safety scan, §19.1 reference |
+| **13.3** Phase 2 | MUST REVERT WHEN property category, REVERT field | — |
+| **13.3.1** Dual mindset | MUST REVERT WHEN enumeration, revert test mining | — |
+| **13.4** Phase 3.5 | @withrevert revert validation rules | `use builtin rule sanity;` step |
+| **13.5** Phase 7 | @withrevert step (#7), Pattern B reference | `use builtin rule` step (#8), §19.1 reference |
+| **13.5.1** Token standard | @withrevert for all functions, safeMint/safeTransferFrom | Phase 0 builtin scan, overflow/casting refs |
+| **13.6** Debugging CEs | SILENT PASS diagnosis (5 new questions) | — |
+| **13.7** Essential info | — | Prover version + unchecked{}/assembly fields |
+
+### Version labels consolidated
+- Removed stale "NEW v1.3" / "NEW v1.5" labels from prompt bodies
+- Replaced with current "← NEW v1.6" / "← NEW v1.7" markers
 
 ---
 
