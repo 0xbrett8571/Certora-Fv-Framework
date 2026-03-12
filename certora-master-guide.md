@@ -2793,20 +2793,28 @@ I am starting a formal verification project using Certora for the following cont
 Please help me follow the certora-master-guide.md workflow:
 
 1. First, create the folder structure (spec_authoring/, certora/specs/, certora/confs/, certora/harnesses/)
-2. Create the analysis documents for this target:
+2. Create the analysis documents for this target in `spec_authoring/`:
    - {target}_spec_authoring.md
    - {target}_candidate_properties.md  
    - {target}_causal_validation.md
 3. Begin Phase 0: Analyze the target contract to extract:
    - All entry points (external/public functions)
+   - All view functions — especially those used in require() (security-critical entry points)
    - All storage variables
    - All external calls
    - All modifiers/access control
+   - All asset flows (owning contract, inflow/outflow functions, reentrancy risk)
    - All `unchecked{}` blocks and type casts ← NEW v1.7
 4. Run Phase 0 Builtin Safety Scan (if Prover v8.8.0+):  ← NEW v1.7
    - `use builtin rule uncheckedOverflow;` to detect unchecked arithmetic
    - `use builtin rule safeCasting;` to detect unsafe type narrowing
    - Triage results before writing any custom rules
+5. Complete Phase -1 (Execution Closure) before moving to property discovery:
+   - For each external contract: document what truth it owns, what we read/write, whether it can call back
+   - Fill in the Interaction Ownership Table (§4 of certora-master-guide.md)
+   - Make modeling decisions: DISPATCHER / NONDET / HAVOC for each external dependency
+   - For each external call, document its revert conditions
+   - Use prompt 13.2 to continue this phase with AI assistance
 
 The framework documents are already in my project root.
 
@@ -2817,9 +2825,9 @@ The framework documents are already in my project root.
 - best-practices-from-certora.md — §8.4 Circular dependency detection for invariant DAGs  ← NEW v1.9
 - certora-spec-framework.md — Revert/failure-path patterns (Pattern B: @withrevert PREFERRED)
 - certora-spec-framework.md — Custom summary accuracy protocol & invariant DAG protocol  ← NEW v1.9
-- categorizing-properties.md — MUST REVERT WHEN checklist for property discovery
+- categorizing-properties.md — Full property discovery framework: 4 categories (§1–4: Valid States, State Transitions, System-Level, Threat-Driven); dual mindset §5 (SHOULD ALWAYS / SHOULD NEVER / MUST REVERT WHEN); test mining §6; property prioritization §7
 - impact-spec-template.md — Economic impact tracking (persistent ghosts, anti-invariants, hook liveness)  ← NEW v3.0
-- multi-step-attacks-template.md — Flash loan, sandwich, staged, cross-contract attack patterns  ← NEW v3.0
+- multi-step-attacks-template.md — Flash loan, sandwich, staged, governance, reentrancy, cross-contract attack patterns + multi-epoch attack modeling (v3.2)  ← NEW v3.0
 - offensive-pipeline.md — Sample .conf files, CI pipeline script, CE severity triage, attack prioritization  ← NEW v3.0
 - categorizing-properties.md §0 — Economic Impact Categories & Attacker Objective Checklist  ← NEW v3.0
 - certora-master-guide.md §8.4 — Adversarial Design Interrogation (MANDATORY before any spec)  ← NEW v3.2
@@ -2947,9 +2955,9 @@ Create the validation spec and conf to verify mutation paths are complete:
 6. Include ghost synchronization tests if ghosts are needed
 7. Include `@withrevert` in satisfy rules (steps 3–4) for every critical  ← NEW v1.6
    function — this ensures revert paths are NOT silently pruned during validation
-   NOTE: Steps 3–4 already use `@withrevert` in `satisfy !lastReverted` and
-   `satisfy lastReverted`. Full biconditional exhaustive revert rules (Pattern B `<=>`)
-   belong in the REAL spec (Phase 7), not the validation spec.
+   NOTE: Steps 3 and 4 above already use `@withrevert` in `satisfy !lastReverted` and
+   `satisfy lastReverted` (see §7.2 Validation Rule 0 / 0b). Full biconditional exhaustive
+   revert rules (Pattern B `<=>`) belong in the REAL spec (Phase 7), not the validation spec.
 8. If using Prover v8.8.0+, include `use builtin rule sanity;` to catch  ← NEW v1.7
    vacuous rules early
 9. **Annotate invariants with `@dev Level: N` and document dependency DAG**  ← NEW v1.9
