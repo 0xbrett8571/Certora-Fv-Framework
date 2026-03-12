@@ -798,7 +798,7 @@ This document is part of the complete framework:
 
 | Document | Purpose | When to Use |
 |----------|---------|-------------|
-| **SPEC AUTHORING (CERTORA).md** | Understand contract, model execution, classify properties | Before writing any CVL |
+| **spec-authoring-certora.md** | Understand contract, model execution, classify properties | Before writing any CVL |
 | **certora-spec-framework.md** | CVL 2.0 syntax, templates, patterns | When writing CVL spec |
 | **cvl-language-deep-dive.md** | Complete CVL language reference (types, ghosts, hooks, invariants) | CVL mastery ⭐ NEW v1.5 |
 | **verification-playbooks.md** | Production-ready worked examples (ERC-20, WETH, ERC-721) | Copy & adapt ⭐ NEW v1.5 |

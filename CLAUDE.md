@@ -94,7 +94,7 @@ Do not stop at existence of an exploit. Find the **maximum extractable value** v
 | Document | Purpose |
 |----------|---------|
 | `Certora-Fv-Framework/impact-spec-template.md` | **Copy this** for anti-invariant & profit threshold rules |
-| `Certora-Fv-Framework/multi-step-attacks-template.md` | Flash loan, sandwich, staged, cross-contract attack patterns |
+| `Certora-Fv-Framework/multi-step-attacks-template.md` | Flash loan, sandwich, staged, governance, reentrancy, cross-contract attack patterns + multi-epoch attack modeling (v3.2) |
 | `Certora-Fv-Framework/offensive-pipeline.md` | `.conf` setup, CE triage, attack prioritization, severity matrix |
 
 ### Debugging

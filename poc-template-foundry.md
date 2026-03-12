@@ -17,7 +17,7 @@ target.vulnerableFunction(); // Change this to your exploit
 **If asking AI (like me) to write it:**
 
 1. Tell me: "I found a bug in Vault.sol where withdraw() doesn't check balances"
-2. Tell me: "Use Template 1 from POC_TEMPLATE.md"
+2. Tell me: "Use Template 1 from poc-template-foundry.md"
 3. I'll generate the complete working code
 4. You just review and run it
 
@@ -752,7 +752,7 @@ contract InvalidLiquidationTest is InvariantBreakHarness {
     /**
      * @dev
      *  Liquidation of a solvent position causes forced penalty / loss.
-     *  This satisfies Immunefi’s impact requirement even if
+     *  This demonstrates concrete financial impact on the victim even if
      *  the attacker does not receive funds directly.
      */
     function _computeImpact() internal view override returns (uint256) {
@@ -996,7 +996,7 @@ function testShouldRevertButDoesNot() public {
 
 ### Special Case: When `vm.store()` Is OK
 
-`vm.store()` is acceptable **only on out-of-scope / external dependency contracts** — never on the contract you are proving is vulnerable. If you store on the target, a judge can dismiss the PoC as fabricated state.
+`vm.store()` is acceptable **only on out-of-scope / external dependency contracts** — never on the contract you are proving is vulnerable. If you store on the target, a reviewer can dismiss the PoC as fabricated state.
 
 **Allowed uses:**
 - Setting state on an **oracle** or **price feed** to model a historical price

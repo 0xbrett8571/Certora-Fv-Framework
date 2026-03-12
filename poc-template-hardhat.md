@@ -1,7 +1,7 @@
 # Practical Hardhat PoC Template for Vulnerability Demonstration
 
 ```
-Generate a Hardhat PoC for this vulnerability using Template 1 from POC_TEMPLATE_HARDHAT.md
+Generate a Hardhat PoC for this vulnerability using Template 1 from poc-template-hardhat.md
 
 Vulnerability: Vault.sol withdraw() doesn't check balances
 Contract: 0x123...
@@ -644,7 +644,7 @@ DEBUG='hardhat:core:solidity:*' npx hardhat test nodejs
 
 ### Special Case: When `hardhat_setStorageAt` Is OK
 
-`hardhat_setStorageAt` is acceptable **only on out-of-scope / external dependency contracts** — never on the contract you are proving is vulnerable. If you set storage on the target, a judge can dismiss the PoC as fabricated state.
+`hardhat_setStorageAt` is acceptable **only on out-of-scope / external dependency contracts** — never on the contract you are proving is vulnerable. If you set storage on the target, a reviewer can dismiss the PoC as fabricated state.
 
 **Allowed uses:**
 - Setting state on an **oracle** or **price feed** to model a historical price

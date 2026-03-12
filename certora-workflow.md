@@ -111,7 +111,7 @@ project_name/
 │   ├── candidate_properties.md  # Plain English properties (Phase 2)
 │   └── causal_validation.md     # Causal analysis (Phase 3.5)
 └── docs/
-    ├── SPEC AUTHORING (CERTORA).md
+    ├── spec-authoring-certora.md
     ├── certora-spec-framework.md
     ├── certora-ce-diagnosis-framework.md
     └── certora-workflow.md (this file)
@@ -122,7 +122,7 @@ project_name/
 ### STEP 1: CONTRACT ANALYSIS (Phase 0 & -1)
 
 **Open:** `spec_authoring.md`  
-**Reference:** `SPEC AUTHORING (CERTORA).md` Phase 0 and Phase -1
+**Reference:** `spec-authoring-certora.md` Phase 0 and Phase -1
 
 #### 1.1 Complete Phase 0: Contract Reality Pre-flight
 
@@ -641,7 +641,7 @@ Complete modeling decisions in `spec_authoring.md`:
 
 ### STEP 9: FINAL SANITY GATE (Phase 6)
 
-**Reference:** `SPEC AUTHORING (CERTORA).md` Phase 6
+**Reference:** `spec-authoring-certora.md` Phase 6
 
 Go through EVERY checkbox. ALL must pass.
 
@@ -766,7 +766,7 @@ If prover returns counterexamples:
 
 | Document | Use When |
 |----------|----------|
-| `SPEC AUTHORING (CERTORA).md` | Understanding contract, modeling, classifying |
+| `spec-authoring-certora.md` | Understanding contract, modeling, classifying |
 | `certora-spec-framework.md` | Writing CVL code |
 | `cvl-language-deep-dive.md` | CVL type system, ghosts, hooks, invariants ⭐ NEW v1.5 |
 | `verification-playbooks.md` | Copy-paste worked examples ⭐ NEW v1.5 |

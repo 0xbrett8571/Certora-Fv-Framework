@@ -981,7 +981,7 @@ your-project/
 ├── certora-workflow.md               ← Step-by-step process
 ├── certora-spec-framework.md         ← CVL templates & patterns
 ├── certora-ce-diagnosis-framework.md ← Debugging counterexamples
-├── SPEC AUTHORING (CERTORA).md       ← Deep methodology
+├── spec-authoring-certora.md       ← Deep methodology
 ├── categorizing-properties.md        ← Property discovery
 ├── best-practices-from-certora.md    ← Proven techniques
 ├── advanced-cli-reference.md         ← CLI & performance
