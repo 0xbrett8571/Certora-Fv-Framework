@@ -416,7 +416,7 @@ This guards the boundary.
 
 ## Category Mapping Reference
 
-How categories here relate to categories in `SPEC AUTHORING (CERTORA).md`:
+How categories here relate to categories in `spec-authoring-certora.md`:
 
 | This Document | SPEC AUTHORING Phase 2 | Notes |
 |---------------|------------------------|-------|

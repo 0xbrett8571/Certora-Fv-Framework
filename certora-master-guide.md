@@ -43,7 +43,7 @@
 | **multi-step-attacks-template.md** | Flash loan, sandwich, staged, cross-contract patterns | ← **NEW in v3.0** |
 | **offensive-pipeline.md** | CI/CD pipeline, CE triage, attack prioritization | ← **NEW in v3.0** |
 | **poc-template-foundry.md** | CE → Foundry exploit PoC conversion | ← **ENHANCED in v3.0** |
-| **SPEC AUTHORING (CERTORA).md** | Deep methodology & theory | Understanding WHY |
+| **spec-authoring-certora.md** | Deep methodology & theory | Understanding WHY |
 | **categorizing-properties.md** | Property discovery guidance | Phase 2 |
 | **certora-spec-framework.md** | CVL 2.0 syntax & templates | Writing actual CVL |
 | **certora-ce-diagnosis-framework.md** | Counterexample debugging | When rules fail |
@@ -285,7 +285,7 @@ IMPORTANT: You need the ENTIRE contracts folder for compilation,
 ├── certora-workflow.md                ← Phase overview
 ├── certora-spec-framework.md          ← CVL 2.0 syntax & templates
 ├── certora-ce-diagnosis-framework.md  ← Counterexample debugging
-├── SPEC AUTHORING (CERTORA).md        ← Deep methodology
+├── spec-authoring-certora.md        ← Deep methodology
 ├── categorizing-properties.md         ← Phase 2 property discovery
 │
 ├── Certora-CVL-Documentation/                           ← Reference documentation
@@ -348,7 +348,7 @@ dex-verification/
 ├── certora-workflow.md
 ├── certora-spec-framework.md
 ├── certora-ce-diagnosis-framework.md
-├── SPEC AUTHORING (CERTORA).md
+├── spec-authoring-certora.md
 ├── categorizing-properties.md
 │
 ├── ═══ ORIGINAL CONTRACTS ════════════════════════════════════════════════
@@ -441,7 +441,7 @@ touch "certora/confs/${TARGET_CONTRACT}.conf"
 # Copy from your template location (adjust path as needed)
 # cp /path/to/templates/CERTORA_*.md .
 # cp /path/to/templates/categorizing-properties.md .
-# cp /path/to/templates/"SPEC AUTHORING (CERTORA).md" .
+# cp /path/to/templates/spec-authoring-certora.md .
 
 echo "✅ Verification structure created for ${TARGET_CONTRACT}"
 echo ""

@@ -17,7 +17,7 @@ target.vulnerableFunction(); // Change this to your exploit
 **If asking AI (like me) to write it:**
 
 1. Tell me: "I found a bug in Vault.sol where withdraw() doesn't check balances"
-2. Tell me: "Use Template 1 from POC_TEMPLATE.md"
+2. Tell me: "Use Template 1 from poc-template-foundry.md"
 3. I'll generate the complete working code
 4. You just review and run it
 

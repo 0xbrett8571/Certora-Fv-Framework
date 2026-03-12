@@ -9,7 +9,7 @@
 **If you're new to this framework:**
 
 1. **READ FIRST:** [readme.md](readme.md) - Framework overview and mission
-2. **METHODOLOGY:** [SPEC AUTHORING (CERTORA).md](spec-authoring-certora.md) - Understand the WHY
+2. **METHODOLOGY:** [spec-authoring-certora.md](spec-authoring-certora.md) - Understand the WHY
 3. **WORKFLOW:** [certora-master-guide.md](certora-master-guide.md) - Complete step-by-step process
 4. **START VERIFICATION:** [certora-quickstart-template.md](certora-quickstart-template.md) - Copy and fill
 5. **OFFENSIVE MODE:** [impact-spec-template.md](impact-spec-template.md) - Hunt for exploits ⭐ NEW v3.0
@@ -31,7 +31,7 @@
 | [certora-master-guide.md](certora-master-guide.md) | Following complete methodology |
 | [categorizing-properties.md](categorizing-properties.md) | Discovering security properties (Phase 2) |
 | [best-practices-from-certora.md](best-practices-from-certora.md) | Learning proven techniques |
-| [SPEC AUTHORING (CERTORA).md](spec-authoring-certora.md) | Deep understanding of principles |
+| [spec-authoring-certora.md](spec-authoring-certora.md) | Deep understanding of principles |
 
 ### Writing Specs (Phase 7)
 | Document | Use When |
@@ -75,12 +75,12 @@
 
 ### Phase 0: Contract Analysis
 **Primary:** [certora-master-guide.md](certora-master-guide.md) Section 3  
-**Reference:** [SPEC AUTHORING (CERTORA).md](spec-authoring-certora.md) Phase 0  
+**Reference:** [spec-authoring-certora.md](spec-authoring-certora.md) Phase 0  
 **Checklist:** Enumerate entry points, storage, external calls
 
 ### Phase -1: Execution Closure
 **Primary:** [certora-master-guide.md](certora-master-guide.md) Section 4  
-**Reference:** [SPEC AUTHORING (CERTORA).md](spec-authoring-certora.md) Phase -1  
+**Reference:** [spec-authoring-certora.md](spec-authoring-certora.md) Phase -1  
 **Checklist:** Complete interaction ownership table
 
 ### Phase 2: Property Discovery
@@ -96,7 +96,7 @@
 
 ### Phase 3.5: Causal Validation
 **Primary:** [certora-master-guide.md](certora-master-guide.md) Section 7  
-**Reference:** [certora-workflow.md](certora-workflow.md) Step 5  
+**Reference:** [certora-workflow.md](certora-workflow.md) Step 6  
 **Checklist:** Reachability (`satisfy`) PASSED + Validation spec PASSED  
 **Key (v1.8):** Write `satisfy` rules BEFORE assert rules — proves functions are live (anti-vacuity)
 **Multi-Epoch (v3.2):** Flag protocols with time-delayed ops, interest accrual, or oracle feeds for §7.6 patterns
@@ -184,7 +184,7 @@
 ### CVL Syntax
 - **Complete Reference:** [cvl-language-deep-dive.md](cvl-language-deep-dive.md) ⭐ **NEW v1.5** (20 sections)
 - **Templates & Patterns:** [certora-spec-framework.md](certora-spec-framework.md)
-- **Quick Lookup:** [quick-reference-v1.3.md](quick-reference-v1.3.md) Section 12.2
+- **Quick Lookup:** [quick-reference-v1.3.md](quick-reference-v1.3.md) — "Document Quick Links" and "Invariant Patterns Cheat Sheet" sections
 - **Worked Examples:** [verification-playbooks.md](verification-playbooks.md) ⭐ **NEW v1.5**
 
 ### Counterexample Debugging

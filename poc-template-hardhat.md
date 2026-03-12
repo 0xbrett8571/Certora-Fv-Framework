@@ -1,7 +1,7 @@
 # Practical Hardhat PoC Template for Vulnerability Demonstration
 
 ```
-Generate a Hardhat PoC for this vulnerability using Template 1 from POC_TEMPLATE_HARDHAT.md
+Generate a Hardhat PoC for this vulnerability using Template 1 from poc-template-hardhat.md
 
 Vulnerability: Vault.sol withdraw() doesn't check balances
 Contract: 0x123...

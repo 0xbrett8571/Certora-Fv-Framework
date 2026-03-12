@@ -14,7 +14,10 @@
 4. [Harness Best Practices](#4-harness-best-practices)
 5. [Loop Handling](#5-loop-handling)
 6. [Common Pitfalls](#6-common-pitfalls)
-7. [Offensive Property Discovery (v3.0)](#7-offensive-property-discovery-v30)
+7. [Vacuous Truth & Tautology Defense](#7-vacuous-truth--tautology-defense-new-in-v15)
+8. [The `require` → `requireInvariant` Lifecycle](#8-the-require--requireinvariant-lifecycle-new-in-v15)
+9. [Self-Transfer & Edge Case Patterns](#9-self-transfer--edge-case-patterns-new-in-v15)
+10. [Offensive Property Discovery (v3.0)](#10-offensive-property-discovery-v30)
 
 ---
 
@@ -840,8 +843,8 @@ require e.msg.sender != currentContract;  // Modeling constraint, not revert con
 |-----------------|------------------------|
 | **Phase 2** | Sections 1.1, 1.2, 1.3 (Property Discovery, Prioritization) |
 | **Phase 3.5** | Section 3.1, 3.2 (Invariant Patterns) |
-| **Phase 7 ⇄ 8 (Loop)** | Sections 3.3, 6.2, 7, 8, 9 (Preserved Blocks, Vacuity, Lifecycle, Edge Cases, Offensive) |
-| **Offensive Spec** | Section 7 (Offensive Property Discovery — v3.0) |
+| **Phase 7 ⇄ 8 (Loop)** | Sections 3.3, 6.2, 7, 8, 9, 10 (Preserved Blocks, Vacuity, Lifecycle, Edge Cases, Offensive) |
+| **Offensive Spec** | Section 10 (Offensive Property Discovery — v3.0) |
 | **CE Debugging** | Section 2 (CE Investigation Process) |
 | **Harness Design** | Section 4 (Harness Best Practices) |
 | **Loop Handling** | Section 5 (Loop Configuration) |
@@ -884,11 +887,11 @@ require e.msg.sender != currentContract;  // Modeling constraint, not revert con
 
 ---
 
-# 7. OFFENSIVE PROPERTY DISCOVERY (v3.0)
+# 10. OFFENSIVE PROPERTY DISCOVERY (v3.0)
 
 > **New in Framework v3.0:** Techniques for discovering properties that prove the *absence* of profitable attack paths, not just correctness.
 
-## 7.1 From Defensive to Offensive Properties
+## 10.1 From Defensive to Offensive Properties
 
 Traditional property discovery asks: "Does the function do what it should?"
 Offensive property discovery asks: **"Can an attacker extract profit?"**
@@ -909,14 +912,14 @@ Offensive property discovery asks: **"Can an attacker extract profit?"**
 | Fee Extraction | `fee <= maxFee` | `satisfy protocol_fee_collected < expected_fee` |
 | First Depositor | `vault not vulnerable to inflation attack` | `satisfy victim_shares == 0 && victim_deposited > 0` |
 
-## 7.2 Anti-Invariant Best Practices
+## 10.2 Anti-Invariant Best Practices
 
 1. **Always pair with liveness check:** After `assert attacker_profit <= 0`, add `satisfy attacker_profit == 0` to verify the assertion isn't vacuously true
 2. **Use `persistent ghost` for economic accumulators:** Regular ghosts get havoced on unresolved external calls, destroying profit tracking
 3. **Track attacker vs. protocol separately:** Use distinct ghost variables for attacker-controlled and protocol-controlled value flows
 4. **Start with `satisfy`, graduate to `assert`:** Find the attack first, then prove it's impossible after mitigation
 
-## 7.3 Profit Escalation Techniques (v3.2)
+## 10.3 Profit Escalation Techniques (v3.2)
 
 Existence-only proofs detect *vulnerabilities*. Optimization-driven proofs detect *dominant exploits*.
 
@@ -929,7 +932,7 @@ Existence-only proofs detect *vulnerabilities*. Optimization-driven proofs detec
 
 **Reference:** `certora-master-guide.md` Section 9.5.10
 
-## 7.4 Cross-References
+## 10.4 Cross-References
 
 - **Anti-invariant rule templates:** `impact-spec-template.md`
 - **Multi-step attack sequences:** `multi-step-attacks-template.md`

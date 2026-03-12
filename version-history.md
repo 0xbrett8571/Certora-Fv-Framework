@@ -54,7 +54,7 @@ limit effectiveness in production security audits and internal security reviews:
 | `spec-authoring-certora.md` | Adversarial Design Interrogation section, Multi-Epoch Attack Awareness section, Profit Escalation section. Phase 8 entry criteria tightened. |
 | `index.md` | Adversarial Design Interrogation phase + checklist. Profit escalation + multi-epoch checklist items. Verification Workflow Checklist: 3 new items. Phase 3.5 multi-epoch flag. |
 | `certora-workflow.md` | Mermaid diagram: ADI, MEA, and PE nodes added. Phase Summary table: design interrogation row, Phase 8 output updated. |
-| `best-practices-from-certora.md` | §7.3 Profit Escalation Techniques. Discovery Cycle: 3 new steps. §7.4 Cross-References: 3 new entries. |
+| `best-practices-from-certora.md` | §10.3 Profit Escalation Techniques. Discovery Cycle: 3 new steps. §10.4 Cross-References: 3 new entries. |
 | `offensive-pipeline.md` | Pipeline stages: 5→6 (new Profit Escalation stage). Day 3 checklist: profit escalation + multi-epoch. |
 | `impact-spec-template.md` | Profit Escalation Protocol section after Integration Checklist. |
 | `multi-step-attacks-template.md` | Multi-Epoch Attack Modeling section with epoch model, protocol feature mapping, specification approach. |
@@ -947,7 +947,7 @@ This version is designed for:
    - Causal closure verification
    - Repair patterns
 
-5. **SPEC AUTHORING (CERTORA).md**
+5. **spec-authoring-certora.md**
    - Deep methodology
    - Non-negotiable axioms
    - Execution closure principles
@@ -1099,8 +1099,8 @@ This version is designed for:
    - Apply modular verification with `--rule` flag for large specs
 
 2. **Use PoC templates for findings:**
-   - Use `POC_TEMPLATE_Foundry.md` or `POC_TEMPLATE_HARDHAT.md` to translate Certora counterexamples into executable PoCs
-   - Use `VULNERABILITY_REPORT_TEMPLATE.md` for formal write-ups
+   - Use `poc-template-foundry.md` or `poc-template-hardhat.md` to translate Certora counterexamples into executable PoCs
+   - Use `vulnerability-report-template.md` for formal write-ups
 
 ### From v1.2 to v1.3
 

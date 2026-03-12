@@ -115,11 +115,16 @@ See [version-history.md](version-history.md) for the complete changelog.
 |------|---------|-------------|
 | **index.md** | Navigation guide & quick access | ← **START HERE for navigation** |
 | **certora-master-guide.md** | Complete step-by-step instructions | ← **START HERE for verification** |
+| **certora-quickstart-template.md** | Copy-and-fill project scaffolding | Setting up a new verification project |
 | **impact-spec-template.md** | Economic impact tracking & anti-invariants | ← **NEW v3.0** - Offensive verification |
-| **multi-step-attacks-template.md** | Flash loan, sandwich, staged attack patterns | ← **NEW v3.0** - Attack synthesis |
+| **multi-step-attacks-template.md** | Flash loan, sandwich, staged, governance, reentrancy, cross-contract + multi-epoch attack patterns | ← **NEW v3.0** - Attack synthesis |
+| **offensive-pipeline.md** | CI/CD pipeline, .conf files, CE triage, attack prioritization | ← **NEW v3.0** - Offensive tooling |
 | **cvl-language-deep-dive.md** | Complete CVL language reference | ← **NEW in v1.5** - CVL mastery |
 | **verification-playbooks.md** | Worked examples (ERC-20, WETH, ERC-721) | ← **NEW in v1.5** - Copy & adapt |
 | **advanced-cli-reference.md** | Performance & advanced flags | ← **NEW in v1.4** - Timeouts/optimization |
+| **poc-template-foundry.md** | Convert Certora CE → Foundry exploit PoC | ← **NEW in v1.4** - PoC conversion |
+| **poc-template-hardhat.md** | Convert Certora CE → Hardhat exploit PoC | ← **NEW in v1.4** - PoC conversion |
+| **vulnerability-report-template.md** | Structured vulnerability report template | ← **NEW in v1.4** - Bug reporting |
 | **certora-workflow.md** | Phase overview & checklist | Quick reference |
 | **certora-spec-framework.md** | CVL 2.0 syntax & templates | Writing actual CVL |
 | **certora-ce-diagnosis-framework.md** | Counterexample debugging | When rules fail |
@@ -127,6 +132,8 @@ See [version-history.md](version-history.md) for the complete changelog.
 | **categorizing-properties.md** | Property discovery guidance | Phase 2 |
 | **best-practices-from-certora.md** | Official tutorial techniques | Property discovery & patterns |
 | **quick-reference-v1.3.md** | Printable cheat sheet | Keep open while coding |
+| **tutorial-extraction-summary.md** | Tutorial-to-framework technique mapping | Understanding tutorial integration |
+| **report-writing.md** | Vulnerability report writing guide | Writing security findings |
 | **version-history.md** | Version tracking & migration | Check what changed |
 
 ---
@@ -221,7 +228,7 @@ your-project/
 ├── certora-workflow.md
 ├── certora-spec-framework.md
 ├── certora-ce-diagnosis-framework.md
-├── SPEC AUTHORING (CERTORA).md
+├── spec-authoring-certora.md
 ├── categorizing-properties.md
 ├── best-practices-from-certora.md
 ├── advanced-cli-reference.md         ← NEW v1.4: CLI & performance
@@ -230,9 +237,9 @@ your-project/
 ├── version-history.md
 ├── certora-quickstart-template.md
 ├── tutorial-extraction-summary.md
-├── POC_TEMPLATE_Foundry.md
-├── POC_TEMPLATE_HARDHAT.md
-├── VULNERABILITY_REPORT_TEMPLATE.md
+├── poc-template-foundry.md
+├── poc-template-hardhat.md
+├── vulnerability-report-template.md
 │
 ├── ═══ YOUR CONTRACTS ════════════════════════════════════════════
 ├── contracts/
