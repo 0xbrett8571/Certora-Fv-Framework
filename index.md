@@ -315,7 +315,7 @@ Use MASTER_GUIDE Section 13 for ready-to-use prompts for each phase.
 
 ## Framework Files Summary
 
-Total: **19 documents** (v1.5)
+Total: **23 documents** (v3.2)
 
 **Core (8):**
 1. readme.md
@@ -323,7 +323,7 @@ Total: **19 documents** (v1.5)
 3. certora-workflow.md
 4. certora-spec-framework.md
 5. certora-ce-diagnosis-framework.md
-6. SPEC AUTHORING (CERTORA).md
+6. spec-authoring-certora.md
 7. categorizing-properties.md
 8. certora-quickstart-template.md
 
@@ -334,17 +334,23 @@ Total: **19 documents** (v1.5)
 
 **v1.4 Additions (4):**
 12. advanced-cli-reference.md ⭐ CLI & performance
-13. POC_TEMPLATE_Foundry.md ⭐ Foundry PoC template
-14. POC_TEMPLATE_HARDHAT.md ⭐ Hardhat PoC template
-15. VULNERABILITY_REPORT_TEMPLATE.md ⭐ Report template
+13. poc-template-foundry.md ⭐ Foundry PoC template
+14. poc-template-hardhat.md ⭐ Hardhat PoC template
+15. vulnerability-report-template.md ⭐ Report template
 
 **v1.5 Additions (2):**
 16. cvl-language-deep-dive.md ⭐ Complete CVL language reference
 17. verification-playbooks.md ⭐ ERC-20/WETH/ERC-721 worked examples
 
-**Meta (2):**
-18. version-history.md
-19. index.md (this file)
+**v3.0 Additions — Offensive Verification (3):** ⭐ NEW v3.0
+18. impact-spec-template.md ⭐ Economic impact tracking & anti-invariants
+19. multi-step-attacks-template.md ⭐ Flash loan, sandwich, staged, cross-contract attack patterns
+20. offensive-pipeline.md ⭐ CI/CD pipeline, CE triage, attack prioritization
+
+**Meta (3):**
+21. version-history.md
+22. report-writing.md
+23. index.md (this file)
 
 ---
 

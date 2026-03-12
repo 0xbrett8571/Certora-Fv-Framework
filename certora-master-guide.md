@@ -25,7 +25,7 @@
 10. [Running & Debugging](#10-running--debugging)
 11. [Templates](#11-templates)
 12. [Quick Reference](#12-quick-reference)
-13. [Quick Start Chat Prompt](#13-quick-start-chat-prompt)
+13. [Quick Start Chat Prompts](#13-quick-start-chat-prompts)
 
 ---
 
@@ -1950,220 +1950,6 @@ rule onlyOwner_canChangeSettings(method f, address caller)
 
 ---
 
-# 10. RUNNING & DEBUGGING
-
-## 10.1 Run Commands
-
-```bash
-# ═══════════════════════════════════════════════════════════════
-# Clear cache (do this when changing spec structure)
-# ═══════════════════════════════════════════════════════════════
-rm -rf .certora_internal
-
-# ═══════════════════════════════════════════════════════════════
-# Run validation (ALWAYS FIRST)
-# ═══════════════════════════════════════════════════════════════
-certoraRun certora/confs/validation_yourcontract.conf
-
-# ═══════════════════════════════════════════════════════════════
-# Run real spec
-# ═══════════════════════════════════════════════════════════════
-certoraRun certora/confs/YourContract.conf
-
-# ═══════════════════════════════════════════════════════════════
-# Run specific rule only
-# ═══════════════════════════════════════════════════════════════
-certoraRun certora/confs/YourContract.conf --rule "deposit_increasesBalance"
-
-# ═══════════════════════════════════════════════════════════════
-# Run with output capture
-# ═══════════════════════════════════════════════════════════════
-certoraRun certora/confs/YourContract.conf 2>&1 | tee prover_output.log
-```
-
-## 10.2 Common Compilation Errors
-
-| Error | Cause | Fix |
-|-------|-------|-----|
-| `X is not a valid EVM type` | Enum/custom type in hook | Use `Solidity.Type` or underlying type |
-| `already declared in scope` | Name conflict | Rename your CVL function |
-| `could not find method` | Wrong signature | Check exact signature in contract |
-| `Type mismatch in hook` | Hook type ≠ storage type | Match Solidity types exactly |
-| `NONDET not allowed` | NONDET on state-changing | Use DISPATCHER instead |
-
-## 10.3 Counterexample Debugging
-
-When a rule FAILS, use `certora-ce-diagnosis-framework.md` (enhanced with Tutorial Lesson 02 workflow):
-
-**5-Step Investigation Process (from BEST_PRACTICES Section 2):**
-1. Run entire spec first (get overview of failures)
-2. Focus on one rule (`--rule rule_name`)
-3. Analyze call trace (storage, arguments, returns)
-4. Identify deviation (spec bug vs real bug)
-5. Fix and document
-
-**Call Trace Analysis:**
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│ Step 1: Is the CE showing a REAL bug or SPURIOUS result?    │
-├─────────────────────────────────────────────────────────────┤
-│                                                              │
-│ Check the call trace:                                        │
-│ - Does it use realistic values?                              │
-│ - Does it exploit HAVOC on external calls?                   │
-│ - Does it violate implicit assumptions?                      │
-│                                                              │
-│ REAL BUG:                                                    │
-│ - Values are realistic                                       │
-│ - No HAVOC exploitation                                      │
-│ - Represents actual attack vector                            │
-│ → FIX THE CONTRACT                                           │
-│                                                              │
-│ SPURIOUS:                                                    │
-│ - Unrealistic values (e.g., balance > total supply)          │
-│ - HAVOC changed external state unexpectedly                  │
-│ - Missing modeling constraint                                │
-│ → FIX THE SPEC                                               │
-│                                                              │
-└─────────────────────────────────────────────────────────────┘
-```
-
-## 10.4 Performance Optimization & Timeout Mitigation
-
-> **NEW in v1.4:** See **advanced-cli-reference.md** for complete guide
-
-When rules timeout or run slowly, use these strategies:
-
-### Quick Timeout Fixes
-
-| Problem | Solution | Command |
-|---------|----------|---------|
-| Multiple slow rules | Split to separate jobs | `--split_rules "pattern"` |
-| Complex assertions | Check separately | `--multi_assert_check` |
-| Loop complexity | Adjust iterations | `--loop_iter N` |
-| High path count | Control flow splitting | See advanced guide |
-
-### Common Performance Commands
-
-```bash
-# Split heavy rules (gives each more resources)
-certoraRun certora/confs/Contract.conf --split_rules "solvency_*" "invariant_*"
-
-# Multi-assert check (timeout mitigation)
-certoraRun certora/confs/Contract.conf --multi_assert_check
-
-# Loop handling
-certoraRun certora/confs/Contract.conf --loop_iter 3
-
-# Control flow splitting (eager splitting for large code)
-certoraRun certora/confs/Contract.conf \
-    --prover_args '-smt_initialSplitDepth 5 -depth 15'
-
-# Multiple counterexamples for debugging
-certoraRun certora/confs/Contract.conf --rule failing_rule --multi_example
-```
-
-### Performance Decision Tree
-
-```
-Rule timing out?
-│
-├─► Multiple slow rules? → --split_rules
-├─► Complex assertions? → --multi_assert_check
-├─► Loops in contract? → --loop_iter N (start with 1-3)
-├─► Large source code? → --prover_args '-smt_initialSplitDepth 5'
-└─► Still timing out? → See advanced-cli-reference.md Section 1
-```
-
-### Advanced Debugging Flags
-
-```bash
-# Multiple counterexamples (see different failure paths)
-certoraRun config.conf --rule failing_rule --multi_example
-
-# Independent satisfy (check each satisfy separately)
-certoraRun config.conf --independent_satisfy
-
-# Rule sanity (ensure non-vacuous)
-certoraRun config.conf --rule_sanity basic
-
-# Coverage analysis (find gaps)
-certoraRun config.conf --coverage_info advanced
-```
-
-**→ For detailed strategies, loop handling, multi-version projects, and harness patterns:**  
-**See advanced-cli-reference.md**
-
----
-
-# 11. TEMPLATES
-
-## 11.1 Harness Template (DummyToken.sol)
-
-```solidity
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
-
-/**
- * @title DummyToken
- * @notice Simplified ERC20 for Certora verification
- * @dev Removes complex logic that causes timeouts
- */
-contract DummyToken {
-    mapping(address => uint256) public balanceOf;
-    mapping(address => mapping(address => uint256)) public allowance;
-    uint256 public totalSupply;
-    
-    function transfer(address to, uint256 amount) external returns (bool) {
-        require(balanceOf[msg.sender] >= amount, "Insufficient balance");
-        balanceOf[msg.sender] -= amount;
-        balanceOf[to] += amount;
-        return true;
-    }
-    
-    function transferFrom(address from, address to, uint256 amount) external returns (bool) {
-        require(balanceOf[from] >= amount, "Insufficient balance");
-        require(allowance[from][msg.sender] >= amount, "Insufficient allowance");
-        balanceOf[from] -= amount;
-        balanceOf[to] += amount;
-        allowance[from][msg.sender] -= amount;
-        return true;
-    }
-    
-    function approve(address spender, uint256 amount) external returns (bool) {
-        allowance[msg.sender][spender] = amount;
-        return true;
-    }
-}
-```
-
-## 11.2 Common.spec Template
-
-```cvl
-/*
- * Common definitions shared across specs
- */
-
-// Standard address constraints
-function validAddress(address a) returns bool {
-    return a != 0;
-}
-
-// Standard env constraints  
-function validEnv(env e) returns bool {
-    return e.msg.sender != 0 && 
-           e.block.timestamp > 0 && 
-           e.block.timestamp < 2^40;
-}
-
-// Max values
-definition MAX_UINT256() returns uint256 = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
-definition MAX_UINT128() returns uint256 = 0xffffffffffffffffffffffffffffffff;
-```
-
----
-
 # 9.5. PHASE 8: ATTACK SYNTHESIS (OFFENSIVE)
 
 > **v3.2 — Adversarial Verification Loop**  
@@ -2631,6 +2417,220 @@ for real-world security conclusions or competitive CTF performance.
 
 ---
 
+# 10. RUNNING & DEBUGGING
+
+## 10.1 Run Commands
+
+```bash
+# ═══════════════════════════════════════════════════════════════
+# Clear cache (do this when changing spec structure)
+# ═══════════════════════════════════════════════════════════════
+rm -rf .certora_internal
+
+# ═══════════════════════════════════════════════════════════════
+# Run validation (ALWAYS FIRST)
+# ═══════════════════════════════════════════════════════════════
+certoraRun certora/confs/validation_yourcontract.conf
+
+# ═══════════════════════════════════════════════════════════════
+# Run real spec
+# ═══════════════════════════════════════════════════════════════
+certoraRun certora/confs/YourContract.conf
+
+# ═══════════════════════════════════════════════════════════════
+# Run specific rule only
+# ═══════════════════════════════════════════════════════════════
+certoraRun certora/confs/YourContract.conf --rule "deposit_increasesBalance"
+
+# ═══════════════════════════════════════════════════════════════
+# Run with output capture
+# ═══════════════════════════════════════════════════════════════
+certoraRun certora/confs/YourContract.conf 2>&1 | tee prover_output.log
+```
+
+## 10.2 Common Compilation Errors
+
+| Error | Cause | Fix |
+|-------|-------|-----|
+| `X is not a valid EVM type` | Enum/custom type in hook | Use `Solidity.Type` or underlying type |
+| `already declared in scope` | Name conflict | Rename your CVL function |
+| `could not find method` | Wrong signature | Check exact signature in contract |
+| `Type mismatch in hook` | Hook type ≠ storage type | Match Solidity types exactly |
+| `NONDET not allowed` | NONDET on state-changing | Use DISPATCHER instead |
+
+## 10.3 Counterexample Debugging
+
+When a rule FAILS, use `certora-ce-diagnosis-framework.md` (enhanced with Tutorial Lesson 02 workflow):
+
+**5-Step Investigation Process (from BEST_PRACTICES Section 2):**
+1. Run entire spec first (get overview of failures)
+2. Focus on one rule (`--rule rule_name`)
+3. Analyze call trace (storage, arguments, returns)
+4. Identify deviation (spec bug vs real bug)
+5. Fix and document
+
+**Call Trace Analysis:**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Step 1: Is the CE showing a REAL bug or SPURIOUS result?    │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│ Check the call trace:                                        │
+│ - Does it use realistic values?                              │
+│ - Does it exploit HAVOC on external calls?                   │
+│ - Does it violate implicit assumptions?                      │
+│                                                              │
+│ REAL BUG:                                                    │
+│ - Values are realistic                                       │
+│ - No HAVOC exploitation                                      │
+│ - Represents actual attack vector                            │
+│ → FIX THE CONTRACT                                           │
+│                                                              │
+│ SPURIOUS:                                                    │
+│ - Unrealistic values (e.g., balance > total supply)          │
+│ - HAVOC changed external state unexpectedly                  │
+│ - Missing modeling constraint                                │
+│ → FIX THE SPEC                                               │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+## 10.4 Performance Optimization & Timeout Mitigation
+
+> **NEW in v1.4:** See **advanced-cli-reference.md** for complete guide
+
+When rules timeout or run slowly, use these strategies:
+
+### Quick Timeout Fixes
+
+| Problem | Solution | Command |
+|---------|----------|---------|
+| Multiple slow rules | Split to separate jobs | `--split_rules "pattern"` |
+| Complex assertions | Check separately | `--multi_assert_check` |
+| Loop complexity | Adjust iterations | `--loop_iter N` |
+| High path count | Control flow splitting | See advanced guide |
+
+### Common Performance Commands
+
+```bash
+# Split heavy rules (gives each more resources)
+certoraRun certora/confs/Contract.conf --split_rules "solvency_*" "invariant_*"
+
+# Multi-assert check (timeout mitigation)
+certoraRun certora/confs/Contract.conf --multi_assert_check
+
+# Loop handling
+certoraRun certora/confs/Contract.conf --loop_iter 3
+
+# Control flow splitting (eager splitting for large code)
+certoraRun certora/confs/Contract.conf \
+    --prover_args '-smt_initialSplitDepth 5 -depth 15'
+
+# Multiple counterexamples for debugging
+certoraRun certora/confs/Contract.conf --rule failing_rule --multi_example
+```
+
+### Performance Decision Tree
+
+```
+Rule timing out?
+│
+├─► Multiple slow rules? → --split_rules
+├─► Complex assertions? → --multi_assert_check
+├─► Loops in contract? → --loop_iter N (start with 1-3)
+├─► Large source code? → --prover_args '-smt_initialSplitDepth 5'
+└─► Still timing out? → See advanced-cli-reference.md Section 1
+```
+
+### Advanced Debugging Flags
+
+```bash
+# Multiple counterexamples (see different failure paths)
+certoraRun config.conf --rule failing_rule --multi_example
+
+# Independent satisfy (check each satisfy separately)
+certoraRun config.conf --independent_satisfy
+
+# Rule sanity (ensure non-vacuous)
+certoraRun config.conf --rule_sanity basic
+
+# Coverage analysis (find gaps)
+certoraRun config.conf --coverage_info advanced
+```
+
+**→ For detailed strategies, loop handling, multi-version projects, and harness patterns:**  
+**See advanced-cli-reference.md**
+
+---
+
+# 11. TEMPLATES
+
+## 11.1 Harness Template (DummyToken.sol)
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+/**
+ * @title DummyToken
+ * @notice Simplified ERC20 for Certora verification
+ * @dev Removes complex logic that causes timeouts
+ */
+contract DummyToken {
+    mapping(address => uint256) public balanceOf;
+    mapping(address => mapping(address => uint256)) public allowance;
+    uint256 public totalSupply;
+    
+    function transfer(address to, uint256 amount) external returns (bool) {
+        require(balanceOf[msg.sender] >= amount, "Insufficient balance");
+        balanceOf[msg.sender] -= amount;
+        balanceOf[to] += amount;
+        return true;
+    }
+    
+    function transferFrom(address from, address to, uint256 amount) external returns (bool) {
+        require(balanceOf[from] >= amount, "Insufficient balance");
+        require(allowance[from][msg.sender] >= amount, "Insufficient allowance");
+        balanceOf[from] -= amount;
+        balanceOf[to] += amount;
+        allowance[from][msg.sender] -= amount;
+        return true;
+    }
+    
+    function approve(address spender, uint256 amount) external returns (bool) {
+        allowance[msg.sender][spender] = amount;
+        return true;
+    }
+}
+```
+
+## 11.2 Common.spec Template
+
+```cvl
+/*
+ * Common definitions shared across specs
+ */
+
+// Standard address constraints
+function validAddress(address a) returns bool {
+    return a != 0;
+}
+
+// Standard env constraints  
+function validEnv(env e) returns bool {
+    return e.msg.sender != 0 && 
+           e.block.timestamp > 0 && 
+           e.block.timestamp < 2^40;
+}
+
+// Max values
+definition MAX_UINT256() returns uint256 = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
+definition MAX_UINT128() returns uint256 = 0xffffffffffffffffffffffffffffffff;
+```
+
+---
+
 # 12. QUICK REFERENCE
 
 ## 12.1 Command Cheat Sheet
@@ -2821,6 +2821,9 @@ The framework documents are already in my project root.
 - multi-step-attacks-template.md — Flash loan, sandwich, staged, cross-contract attack patterns  ← NEW v3.0
 - offensive-pipeline.md — Sample .conf files, CI pipeline script, CE severity triage, attack prioritization  ← NEW v3.0
 - categorizing-properties.md §0 — Economic Impact Categories & Attacker Objective Checklist  ← NEW v3.0
+- certora-master-guide.md §8.4 — Adversarial Design Interrogation (MANDATORY before any spec)  ← NEW v3.2
+- certora-master-guide.md §7.6 — Multi-Epoch Attack Modeling (time-delayed/oracle protocols)  ← NEW v3.2
+- certora-master-guide.md §9.5.10 — Profit Escalation Protocol (SAT→UNSAT boundary)          ← NEW v3.2
 ```
 
 ## 13.2 For Continuing Phase 0 / Phase -1
@@ -3058,27 +3061,31 @@ Please help me set up BOTH specs from the shared causal model:
 7. Set up impact ghosts in a separate impact spec file (actor_value, total_system_value)
 8. Write anti-invariants: rules expected to FAIL if exploit exists
 9. Run hook liveness checks FIRST (dead hooks = vacuous results)
-10. Run profit search rules (satisfy profit > 0)
+10. Run profit search rules (`satisfy attacker_profit >= 1`)
+11. **Run Profit Escalation Protocol (§9.5.10):** iterate thresholds (1, 10^3, 10^6, 10^9, 10^12, 10^15, 10^18) until UNSAT — establish the SAT→UNSAT boundary (max extractable value)
+12. **Check multi-epoch attack patterns (§7.6)** if the protocol has time-delayed operations, interest accrual, or oracle feeds
 
 **C. The Feedback Loop — iterate until convergence:**
-11. If offensive SAT (exploit found) → fix code OR update defensive hypothesis → re-run
-12. If offensive UNSAT → weaken offensive assumptions OR expand causal model → re-run
-13. Loop until both specs converge on the shared causal model
+13. If offensive SAT (exploit found) → fix code OR update defensive hypothesis → re-run
+14. If offensive UNSAT → weaken offensive assumptions OR expand causal model → re-run
+15. Loop until both specs converge on the shared causal model
 
 **D. Final Defensive Verification (ALWAYS LAST):**
-14. Only after offensive attack surface is EXHAUSTED:
-15. Complete the full CVL spec with all invariants, rules, and @withrevert patterns
-16. Add standard `definition` blocks (nonpayable, nonzerosender, balanceLimited)
-17. For EVERY state-changing function, write @withrevert rules (Pattern B: biconditional <=>)
-18. Add `use builtin rule uncheckedOverflow;` and/or `safeCasting;` if applicable
-19. **Annotate every invariant with `@dev Level: N | Dependencies: ...`**  ← NEW v1.9
-20. **For each custom summary, add accuracy annotation (Exact/Over/Under)**  ← NEW v1.9
-21. Create final certora/specs/{Contract}.spec and certora/confs/{Contract}.conf
+16. Only after offensive attack surface is EXHAUSTED:
+17. Complete the full CVL spec with all invariants, rules, and @withrevert patterns
+18. Add standard `definition` blocks (nonpayable, nonzerosender, balanceLimited)
+19. For EVERY state-changing function, write @withrevert rules (Pattern B: biconditional <=>)
+20. Add `use builtin rule uncheckedOverflow;` and/or `safeCasting;` if applicable
+21. **Annotate every invariant with `@dev Level: N | Dependencies: ...`**  ← NEW v1.9
+22. **For each custom summary, add accuracy annotation (Exact/Over/Under)**  ← NEW v1.9
+23. Create final certora/specs/{Contract}.spec and certora/confs/{Contract}.conf
 
 Reference:
 - certora-master-guide.md Section 1.4 (Adversarial Verification Model — the canonical loop)
 - certora-master-guide.md section 9.0 (Transition from Validation to Real Spec)
 - certora-master-guide.md section 9.5 (Phase 8: Attack Synthesis)
+- certora-master-guide.md section 9.5.10 (Attacker Optimization & Profit Escalation)        ← NEW v3.2
+- certora-master-guide.md section 7.6 (Multi-Epoch Attack Modeling)                          ← NEW v3.2
 - cvl-language-deep-dive.md (complete CVL reference — types, operators, ghosts, hooks, definitions)
 - cvl-language-deep-dive.md §19.1 (builtin rules — uncheckedOverflow, safeCasting)  ← NEW v1.7
 - verification-playbooks.md (if ERC-20/721/WETH — follow the complete worked example)
@@ -3242,13 +3249,16 @@ Please help me run the adversarial verification loop:
    - `zero_sum_transfers` — fails if value created from nothing
    - Use `satisfy` with `find_profitable_inputs` for active attack search
 
-6. **Run Iterative Threshold Protocol (find maximum exploit size):**
-   - `satisfy profit > 0` → SAT? Continue
-   - `satisfy profit > 10^6` → SAT? Continue
-   - `satisfy profit > 10^9` → SAT? Continue
-   - `satisfy profit > 10^12` → UNSAT → Max exploit ≈ 10^9–10^12 range
+6. **Run Iterative Threshold Protocol (find maximum exploit size — §9.5.10):**
+   - `satisfy attacker_profit >= 1` → SAT? → Attack exists. Record witness. Continue.
+   - `satisfy attacker_profit >= 10^3` → SAT? Continue
+   - `satisfy attacker_profit >= 10^6` → SAT? Continue
+   - `satisfy attacker_profit >= 10^9` → SAT? Continue
+   - `satisfy attacker_profit >= 10^12` → SAT? Continue
+   - Continue: `10^15`, `10^18` → First UNSAT = maximum extractable value boundary
+   - If ALL thresholds SAT → **UNBOUNDED VULNERABILITY** — report as CRITICAL
    - Certora's SMT solver finds ANY witness, not the maximum — this iterative
-     tightening protocol provides the workaround
+     tightening protocol provides the workaround (see §9.5.10 for full protocol)
 
 7. **Multi-Step Attack Patterns (choose by protocol type):**
    - Flash loan attack search (if protocol holds value)
