@@ -2945,8 +2945,11 @@ Create the validation spec and conf to verify mutation paths are complete:
    - Proves revert paths are reachable (guards biconditional `<=>` from vacuity)
 5. Include validation rules for each INVARIANT variable
 6. Include ghost synchronization tests if ghosts are needed
-7. Include revert validation: for each state-changing function, write a  ← NEW v1.6
-   `@withrevert` rule confirming revert conditions are exhaustive
+7. Include `@withrevert` in satisfy rules (steps 3–4) for every critical  ← NEW v1.6
+   function — this ensures revert paths are NOT silently pruned during validation
+   NOTE: Steps 3–4 already use `@withrevert` in `satisfy !lastReverted` and
+   `satisfy lastReverted`. Full biconditional exhaustive revert rules (Pattern B `<=>`)
+   belong in the REAL spec (Phase 7), not the validation spec.
 8. If using Prover v8.8.0+, include `use builtin rule sanity;` to catch  ← NEW v1.7
    vacuous rules early
 9. **Annotate invariants with `@dev Level: N` and document dependency DAG**  ← NEW v1.9
@@ -2963,7 +2966,7 @@ Create the validation spec and conf to verify mutation paths are complete:
 - Only after Evidence Review signed off → proceed to Phase 7 (real spec)  ← NEW v2.0
 
 Reference:
-- certora-master-guide.md section 7 (validation spec template with Rule 0)
+- certora-master-guide.md section 7.2 (validation spec template — Validation Rule 0: Function Reachability)
 - cvl-language-deep-dive.md Sections 8-9 (ghost declaration, init_state axiom, hook syntax)
 - cvl-language-deep-dive.md §19.1 (builtin rules — sanity, deepSanity)  ← NEW v1.7
 - best-practices-from-certora.md Section 7 (vacuity defense, satisfy for reachability, failure-path satisfy)  ← updated v1.9
@@ -3012,7 +3015,7 @@ Please help me complete the Validation Evidence Review:
    - If any fail, the validation has hidden vacuity
 
 5. **Evidence Sign-Off:**
-   - Fill in the Validation Evidence Review template in causal_validation.md
+   - Fill in the Validation Evidence Review template in `{target}_causal_validation.md`
    - Record Prover job URL, rule status table, witness inspections
    - Produce signed completion statement
 
@@ -3059,7 +3062,11 @@ Please help me set up BOTH specs from the shared causal model:
 6. **Do NOT write the full spec yet** — it will be refined by offensive findings
 
 **B. Offensive Existential Spec (attack search):**
-7. Set up impact ghosts in a separate impact spec file (actor_value, total_system_value)
+7. Copy ALL impact ghosts from impact-spec-template.md into a separate impact spec file:
+   - `actor_value`, `total_system_value`, `total_value_extracted`
+   - Impact category flags: `insolvent_state`, `dilution_factor`, `socialized_loss`,
+     `liquidity_frozen`, `irreversible_loss_occurred`
+   - ⚠️ ALL ghosts MUST be `persistent` (see impact-spec-template.md Sections 1–2)
 8. Write anti-invariants: rules expected to FAIL if exploit exists
 9. Run hook liveness checks FIRST (dead hooks = vacuous results)
 10. Run profit search rules (`satisfy attacker_profit >= 1`)
@@ -3168,12 +3175,12 @@ Please help me diagnose using the systematic approach:
    - Validate on mainnet fork
 
 Reference:
-- certora-ce-diagnosis-framework.md (comprehensive 5-phase diagnosis + ghost havocing guide)
+- certora-ce-diagnosis-framework.md (Phase -1/A/B classification + 5-step investigation workflow + ghost havocing guide)
 - certora-ce-diagnosis-framework.md SILENT PASS classification  ← NEW v1.6
 - certora-ce-diagnosis-framework.md CE→Exploit Conversion section  ← NEW v3.0
 - best-practices-from-certora.md Section 2 (5-step investigation workflow from Tutorial Lesson 02)
 - cvl-language-deep-dive.md Section 4 (vacuous truth — is the rule trivially passing?)
-- cvl-language-deep-dive.md Section 8 (ghost havocing — when/why ghosts get arbitrary values)
+- cvl-language-deep-dive.md Section 8 (Ghost Variables — Complete Reference, including havocing behavior)
 - Focus on call trace analysis: storage changes, arguments, return values
 ```
 
